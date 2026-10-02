@@ -1,0 +1,6 @@
+# Secret keys - NEVER upload these to GitHub!
+.env
+
+# Python junk files
+__pycache__/
+*.pyc
