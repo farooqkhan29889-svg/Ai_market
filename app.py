@@ -81,6 +81,43 @@ def ask_cf_image(prompt):
         return None, "No image in the answer"
     return base64.b64decode(img_b64), None
 
+# ---- Turn the resume text into a real PDF file ----
+def make_resume_pdf(text):
+    from fpdf import FPDF
+    # The AI sometimes writes "smart" characters (fancy spaces, dashes, quotes)
+    # that the PDF font cannot print. Replace them with normal ones first.
+    replacements = {
+        "\u00a0": " ", "\u2002": " ", "\u2003": " ", "\u2009": " ",
+        "\u2011": "-", "\u2013": "-", "\u2014": "-", "\u2022": "-",
+        "\u2018": "'", "\u2019": "'", "\u201c": '"', "\u201d": '"',
+    }
+    for smart, normal in replacements.items():
+        text = text.replace(smart, normal)
+    text = text.encode("latin-1", errors="replace").decode("latin-1")
+
+    pdf = FPDF()
+    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.set_margins(15, 15, 15)
+    pdf.add_page()
+    for line in text.split("\n"):
+        line = line.strip().replace("**", "")
+        if not line:
+            pdf.ln(3)
+        elif line.startswith("# "):
+            pdf.set_font("Helvetica", "B", 18)
+            pdf.multi_cell(0, 9, line[2:].strip(), new_x="LMARGIN", new_y="NEXT")
+        elif line.startswith("## "):
+            pdf.set_font("Helvetica", "B", 13)
+            pdf.ln(2)
+            pdf.multi_cell(0, 8, line[3:].strip(), new_x="LMARGIN", new_y="NEXT")
+        elif line.startswith("- "):
+            pdf.set_font("Helvetica", "", 11)
+            pdf.multi_cell(0, 6, "  -  " + line[2:].strip(), new_x="LMARGIN", new_y="NEXT")
+        else:
+            pdf.set_font("Helvetica", "", 11)
+            pdf.multi_cell(0, 6, line, new_x="LMARGIN", new_y="NEXT")
+    return bytes(pdf.output())
+
 # ---- 1. Browser tab settings ----
 st.set_page_config(page_title="My AI Platform", layout="wide")
 
@@ -150,7 +187,7 @@ tools = [
     {"name": "Chat AI",       "desc": "Talk with AI like ChatGPT",          "status": "Ready",  "ready": True},
     {"name": "Image Generator","desc": "Type words, get a picture",         "status": "Ready",  "ready": True},
     {"name": "Text & Articles","desc": "Write articles, news, posts",       "status": "Ready",  "ready": True},
-    {"name": "Resume Maker",  "desc": "Make a job resume in seconds",       "status": "Step 5", "ready": True},
+    {"name": "Resume Maker",  "desc": "Make a job resume in seconds",       "status": "Ready", "ready": True},
     {"name": "Reels Maker",   "desc": "Auto video for Instagram",           "status": "Soon",   "ready": False},
     {"name": "YouTube Shorts","desc": "Auto video for YouTube",             "status": "Soon",   "ready": False},
     {"name": "Video Editing", "desc": "AI helps edit your videos",          "status": "Soon",   "ready": False},
@@ -257,6 +294,76 @@ elif page == "Text & Articles":
                 st.markdown(result)
                 st.download_button("Download as .txt", result.encode("utf-8"),
                                    file_name="my_text.txt", mime="text/plain")
+
+elif page == "Resume Maker":
+    st.markdown('<div class="main-title">Resume Maker</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sub-title">Fill in the boxes and AI will write your resume. '
+                'Step 3: download it as PDF or TXT.</div>',
+                unsafe_allow_html=True)
+
+    # st.form = a box that waits. Nothing happens until you press the button.
+    with st.form("resume_form"):
+        st.markdown("**About you**")
+        col1, col2 = st.columns(2)
+        with col1:
+            name = st.text_input("Your full name")
+            job_title = st.text_input("What job do you want? (example: Web Developer)")
+        with col2:
+            email = st.text_input("Email")
+            phone = st.text_input("Phone number")
+
+        st.markdown("**Your skills and history**")
+        skills = st.text_area("Skills (separate with commas)",
+                              placeholder="example: Python, Microsoft Excel, English, teamwork")
+        experience = st.text_area("Work experience",
+                                  placeholder="example: Cashier at FreshMart, 2022-2024")
+        education = st.text_area("Education",
+                                 placeholder="example: B.A. English, City College, 2020")
+
+        submitted = st.form_submit_button("Write my resume")
+
+    if submitted:
+        if not name.strip():
+            st.warning("Type your name first!")
+        else:
+            with st.spinner("AI is writing your resume... please wait"):
+                # f-string = put a variable inside text with { }
+                # The "prompt trick": tell the AI its job + give it rules, and it writes much better
+                instructions = (
+                    f"You are a professional resume writer. Write a clean, professional "
+                    f"resume for this person.\n\n"
+                    f"Name: {name}\n"
+                    f"Job they want: {job_title}\n"
+                    f"Email: {email}\n"
+                    f"Phone: {phone}\n"
+                    f"Skills: {skills}\n"
+                    f"Experience: {experience}\n"
+                    f"Education: {education}\n\n"
+                    f"Rules:\n"
+                    f"1. Fix all spelling and grammar mistakes, but keep the facts the same.\n"
+                    f"2. Use ## headings and - bullet points.\n"
+                    f"3. Make it impressive and professional.\n"
+                    f"4. Keep it under one page if possible.\n"
+                    f"5. Write the resume text only, no extra comments.\n"
+                    f"6. NEVER invent company names, dates, numbers or facts. "
+                    f"If a detail is missing, use [Company name] or [Year] as a placeholder."
+                )
+                resume = ask_groq(instructions)
+
+            st.markdown("### Your AI resume")
+            st.markdown(resume)
+
+            # Step 3: download the resume as PDF (for job applications) or TXT
+            safe_name = name.replace(" ", "_")
+            col_a, col_b = st.columns(2)
+            with col_a:
+                st.download_button("Download as PDF", make_resume_pdf(resume),
+                                   file_name=f"Resume_{safe_name}.pdf",
+                                   mime="application/pdf")
+            with col_b:
+                st.download_button("Download as .txt", resume.encode("utf-8"),
+                                   file_name=f"Resume_{safe_name}.txt",
+                                   mime="text/plain")
 
 else:
     # Placeholder page for every tool (we build them one by one)
