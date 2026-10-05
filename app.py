@@ -298,7 +298,7 @@ elif page == "Text & Articles":
 elif page == "Resume Maker":
     st.markdown('<div class="main-title">Resume Maker</div>', unsafe_allow_html=True)
     st.markdown('<div class="sub-title">Fill in the boxes and AI will write your resume. '
-                'Step 3: download it as PDF or TXT.</div>',
+                'Download it as PDF or TXT.</div>',
                 unsafe_allow_html=True)
 
     # st.form = a box that waits. Nothing happens until you press the button.
@@ -309,16 +309,33 @@ elif page == "Resume Maker":
             name = st.text_input("Your full name")
             job_title = st.text_input("What job do you want? (example: Web Developer)")
         with col2:
-            email = st.text_input("Email")
+            email = st.text_input("Email ID")
             phone = st.text_input("Phone number")
+        address = st.text_input("Address",
+                                placeholder="example: House 12, MG Road, Mumbai")
 
-        st.markdown("**Your skills and history**")
-        skills = st.text_area("Skills (separate with commas)",
-                              placeholder="example: Python, Microsoft Excel, English, teamwork")
-        experience = st.text_area("Work experience",
-                                  placeholder="example: Cashier at FreshMart, 2022-2024")
+        st.markdown("**Education**")
         education = st.text_area("Education",
                                  placeholder="example: B.A. English, City College, 2020")
+
+        st.markdown("**Skills**")
+        skills = st.text_area("Skills (separate with commas)",
+                              placeholder="example: Python, Microsoft Excel, English, teamwork")
+
+        st.markdown("**Work experience**")
+        experience = st.text_area("Work experience",
+                                  placeholder="example: Cashier at FreshMart, 2022-2024")
+
+        st.markdown("**Personal details**")
+        col3, col4 = st.columns(2)
+        with col3:
+            father_name = st.text_input("Father's name")
+            dob = st.text_input("Date of birth", placeholder="example: 15 August 2002")
+        with col4:
+            gender = st.selectbox("Gender", ["Male", "Female"])
+            marital = st.selectbox("Marital status", ["Single", "Married"])
+        strong_points = st.text_area("Strong points",
+                                     placeholder="example: hardworking, quick learner, honest")
 
         submitted = st.form_submit_button("Write my resume")
 
@@ -336,9 +353,15 @@ elif page == "Resume Maker":
                     f"Job they want: {job_title}\n"
                     f"Email: {email}\n"
                     f"Phone: {phone}\n"
+                    f"Address: {address}\n"
+                    f"Education: {education}\n"
                     f"Skills: {skills}\n"
                     f"Experience: {experience}\n"
-                    f"Education: {education}\n\n"
+                    f"Father's name: {father_name}\n"
+                    f"Date of birth: {dob}\n"
+                    f"Gender: {gender}\n"
+                    f"Marital status: {marital}\n"
+                    f"Strong points: {strong_points}\n\n"
                     f"Rules:\n"
                     f"1. Fix all spelling and grammar mistakes, but keep the facts the same.\n"
                     f"2. Use ## headings and - bullet points.\n"
@@ -346,7 +369,9 @@ elif page == "Resume Maker":
                     f"4. Keep it under one page if possible.\n"
                     f"5. Write the resume text only, no extra comments.\n"
                     f"6. NEVER invent company names, dates, numbers or facts. "
-                    f"If a detail is missing, use [Company name] or [Year] as a placeholder."
+                    f"If a detail is missing, use [Company name] or [Year] as a placeholder.\n"
+                    f"7. End the resume with a '## Personal Details' section containing "
+                    f"father's name, date of birth, gender, marital status and strong points."
                 )
                 resume = ask_groq(instructions)
 
