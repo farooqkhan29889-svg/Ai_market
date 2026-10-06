@@ -130,6 +130,18 @@ def make_voice(text, voice="en-US-JennyNeural", filename="voice.mp3"):
     loop.close()
     return filename
 
+# ---- Turn script text into clean scene lines (works for AI and user-written scripts) ----
+def parse_script_lines(text):
+    lines = []
+    for ln in text.splitlines():
+        ln = ln.strip()
+        if not ln:
+            continue
+        if ln.startswith("- "):
+            ln = ln[2:].strip()
+        lines.append(ln)
+    return lines
+
 # ---- Picture for one reels scene (Cloudflare first, Gemini as backup) ----
 def ask_scene_image(prompt):
     account_id = os.environ.get("CF_ACCOUNT_ID")
@@ -253,8 +265,8 @@ tools = [
     {"name": "Image Generator","desc": "Type words, get a picture",         "status": "Ready",  "ready": True},
     {"name": "Text & Articles","desc": "Write articles, news, posts",       "status": "Ready",  "ready": True},
     {"name": "Resume Maker",  "desc": "Make a job resume in seconds",       "status": "Ready", "ready": True},
-    {"name": "Reels Maker",   "desc": "Auto video for Instagram",           "status": "Ready",   "ready": True},
-    {"name": "YouTube Shorts","desc": "Auto video for YouTube",             "status": "Soon",   "ready": False},
+    {"name": "Reels Maker",   "desc": "AI video or your own pics",           "status": "Ready",   "ready": True},
+    {"name": "YouTube Shorts","desc": "AI video or your own pics",           "status": "Ready",   "ready": True},
     {"name": "Video Editing", "desc": "AI helps edit your videos",          "status": "Soon",   "ready": False},
 ]
 
@@ -457,50 +469,65 @@ elif page == "Resume Maker":
 
 elif page == "Reels Maker":
     st.markdown('<div class="main-title">Reels Maker</div>', unsafe_allow_html=True)
-    st.markdown('<div class="sub-title">Type a topic, AI writes the script, reads it aloud, draws the scenes, '
-                'and makes a video you can post on Instagram.</div>',
+    st.markdown('<div class="sub-title">Two ways to make a Reels: let AI do everything, '
+                'or write your own script and use your own pictures.</div>',
                 unsafe_allow_html=True)
 
-    topic = st.text_input("What is your reels about? (example: 5 amazing facts about space)",
-                          key="reels_topic")
+    mode = st.radio("How do you want to make it?",
+                    ["Easy: AI does everything", "My way: my own script + pictures"],
+                    key="reels_mode")
 
-    if st.button("Write my script"):
-        if not topic.strip():
-            st.warning("Type a topic first!")
-        else:
-            with st.spinner("AI is writing the script... please wait"):
-                instructions = (
-                    f"You are a viral Instagram Reels script writer. "
-                    f"Write a script for a short video about: {topic}\n\n"
-                    f"Rules:\n"
-                    f"1. Exactly 5 lines. Each line is one scene "
-                    f"(later, one picture will show per line).\n"
-                    f"2. Make line 1 a strong hook that makes people stop scrolling.\n"
-                    f"3. Keep every line under 12 words. Simple, punchy English.\n"
-                    f"4. Write ONLY the 5 lines, each starting with '- '. "
-                    f"No headings, no numbers, no extra text."
-                )
-                st.session_state["reels_script"] = ask_groq(instructions)
+    if mode.startswith("Easy"):
+        topic = st.text_input("What is your reels about? (example: 5 amazing facts about space)",
+                              key="reels_topic")
 
-    # The script is saved in session_state so it survives button clicks
-    if "reels_script" in st.session_state:
+        if st.button("Write my script"):
+            if not topic.strip():
+                st.warning("Type a topic first!")
+            else:
+                with st.spinner("AI is writing the script... please wait"):
+                    instructions = (
+                        f"You are a viral Instagram Reels script writer. "
+                        f"Write a script for a short video about: {topic}\n\n"
+                        f"Rules:\n"
+                        f"1. Exactly 5 lines. Each line is one scene "
+                        f"(later, one picture will show per line).\n"
+                        f"2. Make line 1 a strong hook that makes people stop scrolling.\n"
+                        f"3. Keep every line under 12 words. Simple, punchy English.\n"
+                        f"4. Write ONLY the 5 lines, each starting with '- '. "
+                        f"No headings, no numbers, no extra text."
+                    )
+                    st.session_state["reels_script"] = ask_groq(instructions)
+    else:
+        st.markdown("**Step 1:** Write your script. One line = one scene of the video.")
+        my_script = st.text_area("Your script (one line per scene, example:  Welcome to my shop!)",
+                                 height=180, key="reels_my_script")
+        st.markdown("**Step 2:** Upload your pictures in the same order as your lines.")
+        my_files = st.file_uploader("Upload pictures (JPG or PNG)",
+                                    type=["jpg", "jpeg", "png"], accept_multiple_files=True,
+                                    key="reels_my_files")
+        st.caption("Tip: upload one picture per line. The voice reads the lines while your pictures show.")
+
+    # Get the script lines from whatever source the user chose
+    if mode.startswith("Easy"):
+        lines = parse_script_lines(st.session_state["reels_script"]) if "reels_script" in st.session_state else None
+    else:
+        lines = parse_script_lines(my_script) if my_script.strip() else None
+
+    if lines:
         st.markdown("### Your script")
-        st.markdown(st.session_state["reels_script"])
+        st.markdown("\n".join("- " + ln for ln in lines))
 
         st.markdown("### Voice")
         voice_label = st.selectbox("Choose a voice", [
             "en-US-JennyNeural (US woman)",
             "en-US-GuyNeural (US man)",
             "en-IN-NeerjaNeural (India woman)",
-            "en-IN-PrabhatNeural (India man)"])
+            "en-IN-PrabhatNeural (India man)"], key="reels_voice_sel")
         voice_code = voice_label.split(" ")[0]
 
-        if st.button("Make voice"):
+        if st.button("Make voice", key="reels_voice_btn"):
             with st.spinner("AI is speaking... please wait"):
-                # Join the 5 lines into spoken sentences (remove the "- " in front)
-                lines = [ln.strip()[2:].strip()
-                         for ln in st.session_state["reels_script"].splitlines()
-                         if ln.strip().startswith("- ")]
                 spoken_text = ". ".join(lines)
                 voice_file = make_voice(spoken_text, voice=voice_code)
                 st.session_state["reels_voice"] = voice_file
@@ -508,54 +535,174 @@ elif page == "Reels Maker":
             st.audio(open(voice_file, "rb").read(), format="audio/mp3")
 
         st.markdown("### Pictures")
-        if st.button("Make pictures"):
-            with st.spinner("AI is drawing the 5 scenes... this can take 1-3 minutes"):
-                lines = [ln.strip()[2:].strip()
-                         for ln in st.session_state["reels_script"].splitlines()
-                         if ln.strip().startswith("- ")]
-                progress = st.progress(0)
-                images = []
-                for i, line in enumerate(lines):
-                    prompt = (f"Instagram Reels scene, cinematic photo style: {line}. "
-                              f"Vibrant colors, dramatic lighting, NO text on the image")
-                    img_bytes, err = ask_scene_image(prompt)
-                    if err:
-                        st.error(f"Scene {i+1} failed ({err}). Try again in a minute.")
-                        break
-                    images.append(img_bytes)
-                    progress.progress((i + 1) / len(lines))
-                progress.empty()
-                if images:
-                    st.session_state["reels_images"] = images
+        if mode.startswith("Easy"):
+            if st.button("Make pictures", key="reels_pics_btn"):
+                with st.spinner("AI is drawing the scenes... this can take 1-3 minutes"):
+                    progress = st.progress(0)
+                    images = []
+                    for i, line in enumerate(lines):
+                        prompt = (f"Instagram Reels scene, cinematic photo style: {line}. "
+                                  f"Vibrant colors, dramatic lighting, NO text on the image")
+                        img_bytes, err = ask_scene_image(prompt)
+                        if err:
+                            st.error(f"Scene {i+1} failed ({err}). Try again in a minute.")
+                            break
+                        images.append(img_bytes)
+                        progress.progress((i + 1) / len(lines))
+                    progress.empty()
+                    if images:
+                        st.session_state["reels_images"] = images
 
-        if "reels_images" in st.session_state:
-            st.success(f"{len(st.session_state['reels_images'])} scene pictures ready!")
+        # Pictures from whatever source the user chose
+        if mode.startswith("Easy"):
+            images = st.session_state["reels_images"] if "reels_images" in st.session_state else None
+        else:
+            images = [f.getvalue() for f in my_files] if my_files else None
+
+        if images:
+            st.success(f"{len(images)} scene pictures ready!")
             cols = st.columns(5)
-            for i, img in enumerate(st.session_state["reels_images"]):
-                with cols[i]:
+            for i, img in enumerate(images):
+                with cols[i % 5]:
                     st.image(img, use_container_width=True)
 
         st.markdown("### Video")
-        if st.button("Make video", type="primary"):
-            if "reels_images" not in st.session_state:
-                st.warning("Make pictures first!")
+        if st.button("Make video", key="reels_video_btn", type="primary"):
+            if not images:
+                st.warning("Make pictures first!" if mode.startswith("Easy")
+                           else "Upload at least one picture first!")
             else:
                 with st.spinner("Putting voice + pictures together... this takes 1-2 minutes"):
                     # No voice yet? Make one quietly with the chosen voice.
                     if "reels_voice" not in st.session_state:
-                        lines = [ln.strip()[2:].strip()
-                                 for ln in st.session_state["reels_script"].splitlines()
-                                 if ln.strip().startswith("- ")]
                         spoken_text = ". ".join(lines)
                         st.session_state["reels_voice"] = make_voice(spoken_text, voice=voice_code)
-                    video_file = make_reels_video(st.session_state["reels_images"],
-                                                  st.session_state["reels_voice"])
+                    video_file = make_reels_video(images, st.session_state["reels_voice"])
                     st.session_state["reels_video"] = video_file
                 st.success("Your Reels video is ready!")
                 st.video(open(video_file, "rb").read(), format="video/mp4")
                 st.download_button("Download Reels (.mp4)",
                                    open(video_file, "rb").read(),
                                    file_name="my_reels.mp4", mime="video/mp4")
+
+elif page == "YouTube Shorts":
+    st.markdown('<div class="main-title">YouTube Shorts</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sub-title">Two ways to make a Shorts: let AI do everything, '
+                'or write your own script and use your own pictures.</div>',
+                unsafe_allow_html=True)
+
+    mode = st.radio("How do you want to make it?",
+                    ["Easy: AI does everything", "My way: my own script + pictures"],
+                    key="yt_mode")
+
+    if mode.startswith("Easy"):
+        topic = st.text_input("What is your Shorts about? (example: 3 tips to study better)",
+                              key="yt_topic")
+
+        if st.button("Write my script", key="yt_script_btn"):
+            if not topic.strip():
+                st.warning("Type a topic first!")
+            else:
+                with st.spinner("AI is writing the script... please wait"):
+                    instructions = (
+                        f"You are a viral YouTube Shorts script writer. "
+                        f"Write a script for a short vertical video about: {topic}\n\n"
+                        f"Rules:\n"
+                        f"1. Exactly 6 lines. Each line is one scene "
+                        f"(later, one picture will show per line).\n"
+                        f"2. Make line 1 a strong hook that makes people keep watching.\n"
+                        f"3. Keep every line under 12 words. Simple, punchy English.\n"
+                        f"4. Write ONLY the 6 lines, each starting with '- '. "
+                        f"No headings, no numbers, no extra text."
+                    )
+                    st.session_state["yt_script"] = ask_groq(instructions)
+    else:
+        st.markdown("**Step 1:** Write your script. One line = one scene of the video.")
+        my_script = st.text_area("Your script (one line per scene, example:  Welcome to my channel!)",
+                                 height=180, key="yt_my_script")
+        st.markdown("**Step 2:** Upload your pictures in the same order as your lines.")
+        my_files = st.file_uploader("Upload pictures (JPG or PNG)",
+                                    type=["jpg", "jpeg", "png"], accept_multiple_files=True,
+                                    key="yt_my_files")
+        st.caption("Tip: upload one picture per line. The voice reads the lines while your pictures show.")
+
+    # Get the script lines from whatever source the user chose
+    if mode.startswith("Easy"):
+        lines = parse_script_lines(st.session_state["yt_script"]) if "yt_script" in st.session_state else None
+    else:
+        lines = parse_script_lines(my_script) if my_script.strip() else None
+
+    if lines:
+        st.markdown("### Your script")
+        st.markdown("\n".join("- " + ln for ln in lines))
+
+        st.markdown("### Voice")
+        voice_label = st.selectbox("Choose a voice", [
+            "en-US-JennyNeural (US woman)",
+            "en-US-GuyNeural (US man)",
+            "en-IN-NeerjaNeural (India woman)",
+            "en-IN-PrabhatNeural (India man)"], key="yt_voice_sel")
+        voice_code = voice_label.split(" ")[0]
+
+        if st.button("Make voice", key="yt_voice_btn"):
+            with st.spinner("AI is speaking... please wait"):
+                spoken_text = ". ".join(lines)
+                voice_file = make_voice(spoken_text, voice=voice_code)
+                st.session_state["yt_voice"] = voice_file
+            st.success("Voice ready! Play it below.")
+            st.audio(open(voice_file, "rb").read(), format="audio/mp3")
+
+        st.markdown("### Pictures")
+        if mode.startswith("Easy"):
+            if st.button("Make pictures", key="yt_pics_btn"):
+                with st.spinner("AI is drawing the scenes... this can take 1-3 minutes"):
+                    progress = st.progress(0)
+                    images = []
+                    for i, line in enumerate(lines):
+                        prompt = (f"YouTube Shorts scene, cinematic photo style: {line}. "
+                                  f"Vibrant colors, dramatic lighting, NO text on the image")
+                        img_bytes, err = ask_scene_image(prompt)
+                        if err:
+                            st.error(f"Scene {i+1} failed ({err}). Try again in a minute.")
+                            break
+                        images.append(img_bytes)
+                        progress.progress((i + 1) / len(lines))
+                    progress.empty()
+                    if images:
+                        st.session_state["yt_images"] = images
+
+        # Pictures from whatever source the user chose
+        if mode.startswith("Easy"):
+            images = st.session_state["yt_images"] if "yt_images" in st.session_state else None
+        else:
+            images = [f.getvalue() for f in my_files] if my_files else None
+
+        if images:
+            st.success(f"{len(images)} scene pictures ready!")
+            cols = st.columns(3)
+            for i, img in enumerate(images):
+                with cols[i % 3]:
+                    st.image(img, use_container_width=True)
+
+        st.markdown("### Video")
+        if st.button("Make video", key="yt_video_btn", type="primary"):
+            if not images:
+                st.warning("Make pictures first!" if mode.startswith("Easy")
+                           else "Upload at least one picture first!")
+            else:
+                with st.spinner("Putting voice + pictures together... this takes 1-2 minutes"):
+                    # No voice yet? Make one quietly with the chosen voice.
+                    if "yt_voice" not in st.session_state:
+                        spoken_text = ". ".join(lines)
+                        st.session_state["yt_voice"] = make_voice(spoken_text, voice=voice_code)
+                    video_file = make_reels_video(images, st.session_state["yt_voice"],
+                                                  out_file="shorts.mp4")
+                    st.session_state["yt_video"] = video_file
+                st.success("Your YouTube Shorts video is ready!")
+                st.video(open(video_file, "rb").read(), format="video/mp4")
+                st.download_button("Download Shorts (.mp4)",
+                                   open(video_file, "rb").read(),
+                                   file_name="my_shorts.mp4", mime="video/mp4")
 
 else:
     # Placeholder page for every tool (we build them one by one)
