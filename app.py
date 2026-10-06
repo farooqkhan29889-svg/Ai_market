@@ -118,6 +118,71 @@ def make_resume_pdf(text):
             pdf.multi_cell(0, 6, line, new_x="LMARGIN", new_y="NEXT")
     return bytes(pdf.output())
 
+# ---- Free AI voice (Microsoft edge-tts, no key needed) ----
+def make_voice(text, voice="en-US-JennyNeural", filename="voice.mp3"):
+    import asyncio
+    import edge_tts
+    async def _run():
+        communicate = edge_tts.Communicate(text, voice=voice)
+        await communicate.save(filename)
+    loop = asyncio.new_event_loop()
+    loop.run_until_complete(_run())
+    loop.close()
+    return filename
+
+# ---- Picture for one reels scene (Cloudflare first, Gemini as backup) ----
+def ask_scene_image(prompt):
+    account_id = os.environ.get("CF_ACCOUNT_ID")
+    api_token = os.environ.get("CF_API_TOKEN")
+    if account_id and api_token:
+        url = (f"https://api.cloudflare.com/client/v4/accounts/{account_id}"
+               f"/ai/run/@cf/black-forest-labs/flux-1-schnell")
+        # 2 tries: the free service sometimes takes a moment and needs a second attempt
+        for attempt in range(2):
+            try:
+                r = requests.post(url, headers={"Authorization": f"Bearer {api_token}"},
+                                  json={"prompt": prompt}, timeout=(10, 120))
+                if r.status_code == 200:
+                    img_b64 = r.json().get("result", {}).get("image")
+                    if img_b64:
+                        return base64.b64decode(img_b64), None
+            except Exception:
+                pass
+    img_bytes, err = ask_gemini_image(prompt)
+    if not err:
+        return img_bytes, None
+    return None, "All picture services are busy, try again in a minute"
+
+# ---- Stitch pictures + voice into a vertical Instagram video ----
+def make_reels_video(images, voice_file, out_file="reels.mp4"):
+    import os as _os
+    import tempfile
+    import imageio_ffmpeg
+    import moviepy.config as mcfg
+    mcfg.FFMPEG_BINARY = imageio_ffmpeg.get_ffmpeg_exe()
+    from moviepy import ImageClip, AudioFileClip, concatenate_videoclips
+
+    W, H = 1080, 1920
+    audio = AudioFileClip(voice_file)
+    per = audio.duration / len(images)
+    clips = []
+    for img_bytes in images:
+        tmp = tempfile.NamedTemporaryFile(suffix=".jpg", delete=False)
+        tmp.write(img_bytes)
+        tmp.close()
+        clip = ImageClip(tmp.name)
+        _os.unlink(tmp.name)
+        # zoom the square picture to fill the tall phone screen, keep the middle
+        clip = clip.resized((1920, 1920))
+        clip = clip.cropped(x_center=960, y_center=960, width=W, height=H)
+        clip = clip.with_duration(per)
+        clips.append(clip)
+    final = concatenate_videoclips(clips, method="chain")
+    final = final.with_audio(audio)
+    final.write_videofile(out_file, fps=24, codec="libx264",
+                          audio_codec="aac", threads=2, preset="ultrafast")
+    return out_file
+
 # ---- 1. Browser tab settings ----
 st.set_page_config(page_title="My AI Platform", layout="wide")
 
@@ -188,7 +253,7 @@ tools = [
     {"name": "Image Generator","desc": "Type words, get a picture",         "status": "Ready",  "ready": True},
     {"name": "Text & Articles","desc": "Write articles, news, posts",       "status": "Ready",  "ready": True},
     {"name": "Resume Maker",  "desc": "Make a job resume in seconds",       "status": "Ready", "ready": True},
-    {"name": "Reels Maker",   "desc": "Auto video for Instagram",           "status": "Soon",   "ready": False},
+    {"name": "Reels Maker",   "desc": "Auto video for Instagram",           "status": "Ready",   "ready": True},
     {"name": "YouTube Shorts","desc": "Auto video for YouTube",             "status": "Soon",   "ready": False},
     {"name": "Video Editing", "desc": "AI helps edit your videos",          "status": "Soon",   "ready": False},
 ]
@@ -389,6 +454,108 @@ elif page == "Resume Maker":
                 st.download_button("Download as .txt", resume.encode("utf-8"),
                                    file_name=f"Resume_{safe_name}.txt",
                                    mime="text/plain")
+
+elif page == "Reels Maker":
+    st.markdown('<div class="main-title">Reels Maker</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sub-title">Type a topic, AI writes the script, reads it aloud, draws the scenes, '
+                'and makes a video you can post on Instagram.</div>',
+                unsafe_allow_html=True)
+
+    topic = st.text_input("What is your reels about? (example: 5 amazing facts about space)",
+                          key="reels_topic")
+
+    if st.button("Write my script"):
+        if not topic.strip():
+            st.warning("Type a topic first!")
+        else:
+            with st.spinner("AI is writing the script... please wait"):
+                instructions = (
+                    f"You are a viral Instagram Reels script writer. "
+                    f"Write a script for a short video about: {topic}\n\n"
+                    f"Rules:\n"
+                    f"1. Exactly 5 lines. Each line is one scene "
+                    f"(later, one picture will show per line).\n"
+                    f"2. Make line 1 a strong hook that makes people stop scrolling.\n"
+                    f"3. Keep every line under 12 words. Simple, punchy English.\n"
+                    f"4. Write ONLY the 5 lines, each starting with '- '. "
+                    f"No headings, no numbers, no extra text."
+                )
+                st.session_state["reels_script"] = ask_groq(instructions)
+
+    # The script is saved in session_state so it survives button clicks
+    if "reels_script" in st.session_state:
+        st.markdown("### Your script")
+        st.markdown(st.session_state["reels_script"])
+
+        st.markdown("### Voice")
+        voice_label = st.selectbox("Choose a voice", [
+            "en-US-JennyNeural (US woman)",
+            "en-US-GuyNeural (US man)",
+            "en-IN-NeerjaNeural (India woman)",
+            "en-IN-PrabhatNeural (India man)"])
+        voice_code = voice_label.split(" ")[0]
+
+        if st.button("Make voice"):
+            with st.spinner("AI is speaking... please wait"):
+                # Join the 5 lines into spoken sentences (remove the "- " in front)
+                lines = [ln.strip()[2:].strip()
+                         for ln in st.session_state["reels_script"].splitlines()
+                         if ln.strip().startswith("- ")]
+                spoken_text = ". ".join(lines)
+                voice_file = make_voice(spoken_text, voice=voice_code)
+                st.session_state["reels_voice"] = voice_file
+            st.success("Voice ready! Play it below.")
+            st.audio(open(voice_file, "rb").read(), format="audio/mp3")
+
+        st.markdown("### Pictures")
+        if st.button("Make pictures"):
+            with st.spinner("AI is drawing the 5 scenes... this can take 1-3 minutes"):
+                lines = [ln.strip()[2:].strip()
+                         for ln in st.session_state["reels_script"].splitlines()
+                         if ln.strip().startswith("- ")]
+                progress = st.progress(0)
+                images = []
+                for i, line in enumerate(lines):
+                    prompt = (f"Instagram Reels scene, cinematic photo style: {line}. "
+                              f"Vibrant colors, dramatic lighting, NO text on the image")
+                    img_bytes, err = ask_scene_image(prompt)
+                    if err:
+                        st.error(f"Scene {i+1} failed ({err}). Try again in a minute.")
+                        break
+                    images.append(img_bytes)
+                    progress.progress((i + 1) / len(lines))
+                progress.empty()
+                if images:
+                    st.session_state["reels_images"] = images
+
+        if "reels_images" in st.session_state:
+            st.success(f"{len(st.session_state['reels_images'])} scene pictures ready!")
+            cols = st.columns(5)
+            for i, img in enumerate(st.session_state["reels_images"]):
+                with cols[i]:
+                    st.image(img, use_container_width=True)
+
+        st.markdown("### Video")
+        if st.button("Make video", type="primary"):
+            if "reels_images" not in st.session_state:
+                st.warning("Make pictures first!")
+            else:
+                with st.spinner("Putting voice + pictures together... this takes 1-2 minutes"):
+                    # No voice yet? Make one quietly with the chosen voice.
+                    if "reels_voice" not in st.session_state:
+                        lines = [ln.strip()[2:].strip()
+                                 for ln in st.session_state["reels_script"].splitlines()
+                                 if ln.strip().startswith("- ")]
+                        spoken_text = ". ".join(lines)
+                        st.session_state["reels_voice"] = make_voice(spoken_text, voice=voice_code)
+                    video_file = make_reels_video(st.session_state["reels_images"],
+                                                  st.session_state["reels_voice"])
+                    st.session_state["reels_video"] = video_file
+                st.success("Your Reels video is ready!")
+                st.video(open(video_file, "rb").read(), format="video/mp4")
+                st.download_button("Download Reels (.mp4)",
+                                   open(video_file, "rb").read(),
+                                   file_name="my_reels.mp4", mime="video/mp4")
 
 else:
     # Placeholder page for every tool (we build them one by one)
