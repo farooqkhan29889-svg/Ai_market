@@ -32,6 +32,24 @@ def ask_groq(prompt):
         return f"AI error {r.status_code}: {r.text[:200]}"
     return r.json()["choices"][0]["message"]["content"]
 
+# ---- Ask AI about a picture (like ChatGPT with an image) ----
+# Groq no longer has vision models, so Google's Gemini does this job.
+def ask_gemini_vision(prompt, img_bytes):
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if not api_key:
+        return "No GEMINI_API_KEY found in .env file."
+    url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
+    b64 = base64.b64encode(img_bytes).decode()
+    data = {"contents": [{"parts": [
+        {"text": prompt},
+        {"inline_data": {"mime_type": "image/jpeg", "data": b64}}
+    ]}]}
+    r = requests.post(url, params={"key": api_key}, json=data, timeout=120)
+    if r.status_code != 200:
+        return f"AI error {r.status_code}: {r.text[:200]}"
+    parts = r.json().get("candidates", [{}])[0].get("content", {}).get("parts", [])
+    return "".join(p.get("text", "") for p in parts) or "AI gave an empty answer."
+
 # ---- The function that asks Google's AI to draw a picture ----
 def ask_gemini_image(prompt):
     api_key = os.environ.get("GEMINI_API_KEY")
@@ -75,6 +93,26 @@ def ask_cf_image(prompt):
     r = requests.post(url, headers={"Authorization": f"Bearer {api_token}"},
                       json={"prompt": prompt}, timeout=180)
     if r.status_code != 200:
+        return None, f"Cloudflare error {r.status_code}: {r.text[:200]}"
+    img_b64 = r.json().get("result", {}).get("image")
+    if not img_b64:
+        return None, "No image in the answer"
+    return base64.b64decode(img_b64), None
+
+# ---- Edit an uploaded photo: FLUX.2 takes your picture + your words ----
+def ask_cf_edit_image(prompt, img_bytes):
+    account_id = os.environ.get("CF_ACCOUNT_ID")
+    api_token = os.environ.get("CF_API_TOKEN")
+    if not account_id or not api_token:
+        return None, "no key"
+    url = (f"https://api.cloudflare.com/client/v4/accounts/{account_id}"
+           f"/ai/run/@cf/black-forest-labs/flux-2-dev")
+    r = requests.post(url, headers={"Authorization": f"Bearer {api_token}"},
+                      files={"input_image_0": ("photo.jpg", img_bytes, "image/jpeg")},
+                      data={"prompt": prompt, "steps": "25"}, timeout=(10, 180))
+    if r.status_code != 200:
+        if "10,000 neurons" in r.text:
+            return None, "daily limit"
         return None, f"Cloudflare error {r.status_code}: {r.text[:200]}"
     img_b64 = r.json().get("result", {}).get("image")
     if not img_b64:
@@ -130,6 +168,30 @@ def make_voice(text, voice="en-US-JennyNeural", filename="voice.mp3"):
     loop.close()
     return filename
 
+# ---- Cut a part out of an uploaded video ----
+def cut_video(input_file, start, end, out_file="edited.mp4"):
+    import imageio_ffmpeg
+    import moviepy.config as mcfg
+    mcfg.FFMPEG_BINARY = imageio_ffmpeg.get_ffmpeg_exe()
+    from moviepy import VideoFileClip
+    clip = VideoFileClip(input_file)
+    cut = clip.subclipped(start, end)
+    cut.write_videofile(out_file, codec="libx264", audio_codec="aac",
+                        preset="ultrafast", threads=2)
+    clip.close()
+    return out_file
+
+# ---- How long is a video? (needed to set the trim slider) ----
+def get_video_duration(input_file):
+    import imageio_ffmpeg
+    import moviepy.config as mcfg
+    mcfg.FFMPEG_BINARY = imageio_ffmpeg.get_ffmpeg_exe()
+    from moviepy import VideoFileClip
+    clip = VideoFileClip(input_file)
+    d = clip.duration
+    clip.close()
+    return d
+
 # ---- Turn script text into clean scene lines (works for AI and user-written scripts) ----
 def parse_script_lines(text):
     lines = []
@@ -163,7 +225,7 @@ def ask_scene_image(prompt):
     img_bytes, err = ask_gemini_image(prompt)
     if not err:
         return img_bytes, None
-    return None, "All picture services are busy, try again in a minute"
+    return None, "Cloudflare's free daily limit is used up for today — try again tomorrow"
 
 # ---- Stitch pictures + voice into a vertical Instagram video ----
 def make_reels_video(images, voice_file, out_file="reels.mp4"):
@@ -267,7 +329,7 @@ tools = [
     {"name": "Resume Maker",  "desc": "Make a job resume in seconds",       "status": "Ready", "ready": True},
     {"name": "Reels Maker",   "desc": "AI video or your own pics",           "status": "Ready",   "ready": True},
     {"name": "YouTube Shorts","desc": "AI video or your own pics",           "status": "Ready",   "ready": True},
-    {"name": "Video Editing", "desc": "AI helps edit your videos",          "status": "Soon",   "ready": False},
+    {"name": "Video Editing", "desc": "AI helps edit your videos",          "status": "Building", "ready": True},
 ]
 
 # ---- 5. Show the page ----
@@ -286,8 +348,12 @@ if page == "Home":
 
 elif page == "Chat AI":
     st.markdown('<div class="main-title">Chat AI</div>', unsafe_allow_html=True)
-    st.markdown('<div class="sub-title">Talk with AI. Your key is safely hidden in the .env file.</div>',
+    st.markdown('<div class="sub-title">Talk with AI. Add a photo to ask about it, like ChatGPT.</div>',
                 unsafe_allow_html=True)
+
+    # Optional: upload a picture so the AI can see it
+    chat_img = st.file_uploader("Add a photo to your message (optional)",
+                                type=["jpg", "jpeg", "png"], key="chat_img")
 
     # Remember old messages so they don't disappear
     if "messages" not in st.session_state:
@@ -296,19 +362,29 @@ elif page == "Chat AI":
     # Show all old messages
     for m in st.session_state.messages:
         with st.chat_message(m["role"]):
+            if m.get("image"):
+                st.image(m["image"], width=220)
             st.write(m["content"])
 
     # The typing box at the bottom
     prompt = st.chat_input("Type your message here...")
 
     if prompt:
-        # Show what the user typed
-        st.session_state.messages.append({"role": "user", "content": prompt})
+        # Show what the user typed (and the picture, if any)
+        msg = {"role": "user", "content": prompt}
+        if chat_img is not None:
+            msg["image"] = chat_img.getvalue()
+        st.session_state.messages.append(msg)
         with st.chat_message("user"):
+            if msg.get("image"):
+                st.image(msg["image"], width=220)
             st.write(prompt)
 
-        # Get the AI answer
-        reply = ask_groq(prompt)
+        # Get the AI answer (with eyes if a picture was added)
+        if msg.get("image"):
+            reply = ask_gemini_vision(prompt, msg["image"])
+        else:
+            reply = ask_groq(prompt)
 
         st.session_state.messages.append({"role": "assistant", "content": reply})
         with st.chat_message("assistant"):
@@ -316,35 +392,68 @@ elif page == "Chat AI":
 
 elif page == "Image Generator":
     st.markdown('<div class="main-title">Image Generator</div>', unsafe_allow_html=True)
-    st.markdown('<div class="sub-title">Type words, get a picture.</div>',
+    st.markdown('<div class="sub-title">Make a new picture, or upload your own photo and ask AI to change it.</div>',
                 unsafe_allow_html=True)
 
-    prompt = st.text_input("What picture do you want? (English works best)")
-    if st.button("Generate Image"):
-        if not prompt.strip():
-            st.warning("Type something first!")
-        else:
-            with st.spinner("AI is drawing... please wait"):
-                # Try each free provider silently, in order, until one works
-                img_bytes, err = ask_gemini_image(prompt)
-                if err:
-                    img_bytes, err = ask_cf_image(prompt)
-                if err:
-                    img_bytes, err = ask_together_image(prompt)
-                if err:
-                    url = f"https://image.pollinations.ai/prompt/{quote(prompt)}?width=768&height=768&nologo=true"
-                    try:
-                        r = requests.get(url, timeout=180)
-                        if r.status_code == 200:
-                            img_bytes, err = r.content, None
-                    except Exception:
-                        pass
-                if err:
-                    st.error("Sorry, the free image services are busy right now. Please try again in a minute.")
+    tab_new, tab_edit = st.tabs(["Make a new picture", "Edit my photo"])
+
+    with tab_new:
+        prompt = st.text_input("What picture do you want? (English works best)", key="ig_prompt")
+        if st.button("Generate Image", key="ig_gen_btn"):
+            if not prompt.strip():
+                st.warning("Type something first!")
+            else:
+                with st.spinner("AI is drawing... please wait"):
+                    # Try each free provider silently, in order, until one works
+                    daily_limit = False
+                    img_bytes, err = ask_gemini_image(prompt)
+                    if err:
+                        img_bytes, err = ask_cf_image(prompt)
+                        if err and "10,000 neurons" in err:
+                            daily_limit = True
+                    if err:
+                        img_bytes, err = ask_together_image(prompt)
+                    if err:
+                        url = f"https://image.pollinations.ai/prompt/{quote(prompt)}?width=768&height=768&nologo=true"
+                        try:
+                            r = requests.get(url, timeout=180)
+                            if r.status_code == 200:
+                                img_bytes, err = r.content, None
+                        except Exception:
+                            pass
+                    if err:
+                        if daily_limit:
+                            st.error("Cloudflare's free daily limit is used up for today. "
+                                     "It resets every day — please try again tomorrow!")
+                        else:
+                            st.error("Sorry, the free image services are busy right now. Please try again in a minute.")
+                    else:
+                        st.image(img_bytes, caption=prompt, use_container_width=True)
+                        st.download_button("Download Image", img_bytes,
+                                           file_name="my_ai_image.png", mime="image/png")
+
+    with tab_edit:
+        my_photo = st.file_uploader("Upload your photo (JPG or PNG)",
+                                    type=["jpg", "jpeg", "png"], key="ig_photo")
+        if my_photo is not None:
+            st.image(my_photo, caption="Your photo", use_container_width=True)
+            change = st.text_input("What change do you want? (example: change the sky to sunset, make me look younger)",
+                                   key="ig_change")
+            if st.button("Edit My Photo", key="ig_edit_btn", type="primary"):
+                if not change.strip():
+                    st.warning("Describe the change you want first!")
                 else:
-                    st.image(img_bytes, caption=prompt, use_container_width=True)
-                    st.download_button("Download Image", img_bytes,
-                                       file_name="my_ai_image.png", mime="image/png")
+                    with st.spinner("AI is editing your photo... please wait (up to 2 minutes)"):
+                        edited, err = ask_cf_edit_image(change, my_photo.getvalue())
+                    if err == "daily limit":
+                        st.error("Cloudflare's free daily limit is used up for today. "
+                                 "It resets every day — please try again tomorrow!")
+                    elif err:
+                        st.error("Sorry, the photo editor is busy right now. Please try again in a minute.")
+                    else:
+                        st.image(edited, caption="Your edited photo", use_container_width=True)
+                        st.download_button("Download Edited Photo", edited,
+                                           file_name="my_edited_photo.jpg", mime="image/jpeg")
 
 elif page == "Text & Articles":
     st.markdown('<div class="main-title">Text & Articles</div>', unsafe_allow_html=True)
@@ -703,6 +812,48 @@ elif page == "YouTube Shorts":
                 st.download_button("Download Shorts (.mp4)",
                                    open(video_file, "rb").read(),
                                    file_name="my_shorts.mp4", mime="video/mp4")
+
+elif page == "Video Editing":
+    st.markdown('<div class="main-title">Video Editing</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sub-title">Upload your video, keep only the part you want, and download it. '
+                '(Voice-over and vertical mode come in the next steps.)</div>',
+                unsafe_allow_html=True)
+
+    video_file = st.file_uploader("Upload your video (MP4 or MOV)", type=["mp4", "mov"],
+                                  key="ve_file")
+    if video_file is not None:
+        st.video(video_file, format="video/mp4")
+
+        import tempfile
+        tmp = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False)
+        tmp.write(video_file.getvalue())
+        tmp.close()
+
+        try:
+            dur = get_video_duration(tmp.name)
+        except Exception:
+            dur = None
+            st.error("Sorry, I could not read this video. Please try an MP4 file.")
+
+        if dur:
+            st.write(f"Your video is **{dur:.1f} seconds** long.")
+            start, end = st.slider("Keep this part (move the two dots)",
+                                   0.0, float(dur), (0.0, float(dur)), step=0.5,
+                                   key="ve_slider")
+            st.write(f"New video: from **{start:.1f}s** to **{end:.1f}s** "
+                     f"= **{end - start:.1f} seconds**")
+
+            if st.button("Cut and download", key="ve_cut_btn", type="primary"):
+                if end - start < 0.5:
+                    st.warning("Pick a bigger part — the two dots are too close together.")
+                else:
+                    with st.spinner("Cutting your video... this can take a minute"):
+                        out = cut_video(tmp.name, start, end, out_file="edited.mp4")
+                    st.success("Your cut video is ready!")
+                    st.video(out, format="video/mp4")
+                    st.download_button("Download edited video",
+                                       open(out, "rb").read(),
+                                       file_name="edited.mp4", mime="video/mp4")
 
 else:
     # Placeholder page for every tool (we build them one by one)
