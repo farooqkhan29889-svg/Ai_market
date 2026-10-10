@@ -263,11 +263,44 @@ def make_resume_pdf(text, header=None):
                 continue
             break
 
-    pdf.set_auto_page_break(auto=True, margin=14)
-    pdf.set_margins(14, 14, 14)
+    # ---- Group the lines into sections (heading + its bullet lines) ----
+    sections, pre = [], []
+    for raw in lines:
+        line = raw.strip().replace("\t", " ")
+        if not line:
+            continue
+        if line.startswith("#"):
+            title = line.lstrip("#").strip().replace("*", "").replace("_", "")
+            if title.lower() in ("resume", "curriculum vitae", "cv"):
+                continue
+            sections.append({"title": title, "body": []})
+        elif sections:
+            sections[-1]["body"].append(line)
+        else:
+            pre.append(line)
+    if pre:
+        sections.insert(0, {"title": "", "body": pre})
+
+    # Short facts go in the narrow left column, the story goes on the right.
+    LEFT_KEYS = ("skill", "educat", "personal", "detail", "contact", "language",
+                 "certif", "interest", "declaration", "reference", "award", "hobby")
+    left_idx = {i for i, s in enumerate(sections)
+                if any(k in s["title"].lower() for k in LEFT_KEYS)}
+    left_secs = [s for i, s in enumerate(sections) if i in left_idx]
+    right_secs = [s for i, s in enumerate(sections) if i not in left_idx]
+    if not left_secs:  # nothing to put on the side -> one wide column
+        right_secs = sections
+
+    MARGIN, GAP, BODY, LH = 14, 8, 9.5, 4.8
+    left_w = 62 if left_secs else 0
+    right_w = 210 - 2 * MARGIN - (left_w + GAP if left_secs else 0)
+
+    pdf.set_auto_page_break(auto=False)
+    pdf.set_margins(MARGIN, MARGIN, MARGIN)
     pdf.add_page()
 
     # Dark blue band with the name, the job they want, and contact details
+    band_bottom = MARGIN
     if header and header.get("name"):
         band_h = 28 if (header.get("title") or header.get("contact")) else 20
         pdf.set_fill_color(*NAVY)
@@ -282,37 +315,73 @@ def make_resume_pdf(text, header=None):
         if header.get("contact"):
             pdf.set_font(font, "", 9)
             pdf.multi_cell(0, 5, header["contact"], new_x="LMARGIN", new_y="NEXT", align="C")
-        pdf.set_y(band_h + 5)
+        band_bottom = band_h
     pdf.set_text_color(*INK)
 
-    for raw in lines:
-        line = raw.strip().replace("\t", " ")
-        if not line:
-            pdf.ln(2)
-        elif line.startswith("#"):
-            # Any heading level (#, ##, ###) becomes a clean section title + rule
-            title = line.lstrip("#").strip().replace("*", "").replace("_", "")
-            if title.lower() in ("resume", "curriculum vitae", "cv"):
-                continue
-            pdf.ln(3)
-            pdf.set_font(font, "B", 11)
+    def measure(sec, col_w):
+        """How tall a section will be, so we know when to start the next page."""
+        h = 0
+        if sec["title"]:
+            h += 6 + 3.2
+        pdf.set_font(font, "", BODY)
+        for line in sec["body"]:
+            if line[:2] in ("- ", "* ") or line.startswith("•"):
+                h += pdf.multi_cell(col_w - 6, LH, line.lstrip("-*• \t"),
+                                    dry_run=True, output="HEIGHT", markdown=True)
+            else:
+                h += pdf.multi_cell(col_w, LH, line,
+                                    dry_run=True, output="HEIGHT", markdown=True)
+        return h + 3
+
+    def draw(sec, x, y, col_w):
+        if sec["title"]:
+            pdf.set_xy(x, y)
+            pdf.set_font(font, "B", 10.5)
             pdf.set_text_color(*NAVY)
-            pdf.cell(0, 6, title.upper(), new_x="LMARGIN", new_y="NEXT")
+            pdf.cell(col_w, 6, sec["title"].upper())
             pdf.set_draw_color(*NAVY)
             pdf.set_line_width(0.35)
-            rule_y = pdf.get_y() + 0.8
-            pdf.line(pdf.l_margin, rule_y, 210 - pdf.r_margin, rule_y)
-            pdf.set_y(rule_y + 2.4)
+            pdf.line(x, y + 6.8, x + col_w, y + 6.8)
+            y += 6 + 3.2
             pdf.set_text_color(*INK)
-        elif line[:2] in ("- ", "* ") or line.startswith("•"):
-            body = line.lstrip("-*• \t")
-            pdf.set_font(font, "", 10.5)
-            # Bullet on the first line; wrapped lines line up under the text
-            pdf.cell(6, 5.4, bullet)
-            pdf.multi_cell(0, 5.4, body, new_x="LMARGIN", new_y="NEXT", markdown=True)
-        else:
-            pdf.set_font(font, "", 10.5)
-            pdf.multi_cell(0, 5.4, line, new_x="LMARGIN", new_y="NEXT", markdown=True)
+        pdf.set_font(font, "", BODY)
+        for line in sec["body"]:
+            pdf.set_xy(x, y)
+            if line[:2] in ("- ", "* ") or line.startswith("•"):
+                pdf.cell(6, LH, bullet)
+                pdf.multi_cell(col_w - 6, LH, line.lstrip("-*• \t"),
+                               new_x="LEFT", new_y="NEXT", markdown=True, align="L")
+            else:
+                pdf.multi_cell(col_w, LH, line,
+                               new_x="LEFT", new_y="NEXT", markdown=True, align="L")
+            y = pdf.get_y()
+
+    def pack(secs, col_w, top, bottom):
+        """Split sections into pages: returns [[(y, section), ...], ...]."""
+        pages, current, y = [], [], top
+        for sec in secs:
+            h = measure(sec, col_w)
+            if current and y + h > bottom:
+                pages.append(current)
+                current, y = [], MARGIN
+            current.append((y, sec))
+            y += h
+        if current:
+            pages.append(current)
+        return pages or [[]]
+
+    TOP, BOTTOM = band_bottom + 7, 297 - MARGIN
+    left_pages = pack(left_secs, left_w, TOP, BOTTOM) if left_secs else []
+    right_pages = pack(right_secs, right_w, TOP, BOTTOM)
+    for page in range(max(len(left_pages), len(right_pages))):
+        if page:
+            pdf.add_page()
+        if page < len(right_pages):
+            for y, sec in right_pages[page]:
+                draw(sec, MARGIN + left_w + (GAP if left_secs else 0), y, right_w)
+        if page < len(left_pages):
+            for y, sec in left_pages[page]:
+                draw(sec, MARGIN, y, left_w)
     return bytes(pdf.output())
 
 # ---- Free AI voice (Microsoft edge-tts, no key needed) ----
