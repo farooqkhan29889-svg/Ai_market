@@ -4,7 +4,7 @@ import streamlit as st
 import requests
 from urllib.parse import quote
 
-# ---- 0. Load the secret key from .env (visitors can't see it) ----
+# ---- 0. Load the secret keys (from .env locally, from Secrets on the cloud) ----
 def load_env():
     env_path = os.path.join(os.path.dirname(__file__), ".env")
     if os.path.exists(env_path):
@@ -15,6 +15,14 @@ def load_env():
                     key, value = line.split("=", 1)
                     # strip spaces AND quotes (some people write "key" with quotes)
                     os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
+    # On Streamlit Cloud there is no .env (it's gitignored). The keys come from the
+    # app's Settings > Secrets page instead. Copy them into os.environ so every
+    # os.environ.get("...") call below works unchanged in both places.
+    try:
+        for key in st.secrets:
+            os.environ.setdefault(key, str(st.secrets[key]))
+    except Exception:
+        pass
 
 load_env()
 
