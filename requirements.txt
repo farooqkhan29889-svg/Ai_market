@@ -4,3 +4,4 @@ fpdf2
 edge-tts
 imageio-ffmpeg
 moviepy
+qrcode

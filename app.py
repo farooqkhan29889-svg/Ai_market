@@ -396,79 +396,6 @@ def make_voice(text, voice="en-US-JennyNeural", filename="voice.mp3"):
     loop.close()
     return filename
 
-# ---- Cut a part out of an uploaded video ----
-def cut_video(input_file, start, end, out_file="edited.mp4"):
-    import imageio_ffmpeg
-    import moviepy.config as mcfg
-    mcfg.FFMPEG_BINARY = imageio_ffmpeg.get_ffmpeg_exe()
-    from moviepy import VideoFileClip
-    clip = VideoFileClip(input_file)
-    cut = clip.subclipped(start, end)
-    cut.write_videofile(out_file, codec="libx264", audio_codec="aac",
-                        preset="ultrafast", threads=2)
-    clip.close()
-    return out_file
-
-# ---- How long is a video? (needed to set the trim slider) ----
-def get_video_duration(input_file):
-    import imageio_ffmpeg
-    import moviepy.config as mcfg
-    mcfg.FFMPEG_BINARY = imageio_ffmpeg.get_ffmpeg_exe()
-    from moviepy import VideoFileClip
-    clip = VideoFileClip(input_file)
-    d = clip.duration
-    clip.close()
-    return d
-
-# ---- Put an AI voice over a video ----
-# If the voice is longer than the video, the last frame freezes until it finishes.
-def add_voice_to_video(video_file, voice_file, out_file="edited_with_voice.mp4",
-                       keep_original=False):
-    import imageio_ffmpeg
-    import moviepy.config as mcfg
-    mcfg.FFMPEG_BINARY = imageio_ffmpeg.get_ffmpeg_exe()
-    from moviepy import (VideoFileClip, AudioFileClip, CompositeAudioClip,
-                         concatenate_videoclips)
-    video = VideoFileClip(video_file)
-    voice = AudioFileClip(voice_file)
-    if voice.duration > video.duration:
-        frozen = video.to_ImageClip(t=video.duration - 0.1)
-        frozen = frozen.with_duration(voice.duration - video.duration)
-        video = concatenate_videoclips([video, frozen])
-    if keep_original and video.audio is not None:
-        audio = CompositeAudioClip([voice, video.audio.volumex(0.25)])
-        audio = audio.with_duration(video.duration)
-    else:
-        audio = voice
-    final = video.with_audio(audio)
-    final.write_videofile(out_file, codec="libx264", audio_codec="aac",
-                          preset="ultrafast", threads=2)
-    final.close()
-    return out_file
-
-# ---- Turn a video vertical (9:16) for Reels and Shorts ----
-def make_vertical(input_file, out_file="vertical.mp4"):
-    import imageio_ffmpeg
-    import moviepy.config as mcfg
-    mcfg.FFMPEG_BINARY = imageio_ffmpeg.get_ffmpeg_exe()
-    from moviepy import VideoFileClip
-    clip = VideoFileClip(input_file)
-    # Cut the middle 9:16 piece of the picture, then stretch it to 1080x1920
-    target = 9 / 16
-    if clip.w / clip.h > target:
-        cw = int(clip.h * target)
-        ch = clip.h
-    else:
-        cw = clip.w
-        ch = int(clip.w / target)
-    cropped = clip.cropped(width=cw, height=ch,
-                           x_center=clip.w / 2, y_center=clip.h / 2)
-    final = cropped.resized((1080, 1920))
-    final.write_videofile(out_file, codec="libx264", audio_codec="aac",
-                          preset="ultrafast", threads=2)
-    clip.close()
-    return out_file
-
 # ---- Turn script text into clean scene lines (works for AI and user-written scripts) ----
 def parse_script_lines(text):
     lines = []
@@ -754,8 +681,8 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ---- 3. The left menu ----
-menu_items = ["Home", "Chat AI", "Image Generator", "Text & Articles",
-              "Resume Maker", "Reels Maker", "YouTube Shorts", "Video Editing"]
+menu_items = ["Home", "Chat AI", "Image Studio", "Video Maker", "Resume Maker",
+              "Text to Speech", "Thumbnail Maker", "QR Code"]
 
 # "page" remembers where the user is. Cards and the menu both change it.
 if "page" not in st.session_state:
@@ -769,13 +696,13 @@ def go_to(tool_name):
 
 # ---- 4b. All the tools (data) ----
 tools = [
-    {"name": "Chat AI",       "emoji": "💬", "desc": "Talk with AI like ChatGPT",          "status": "Ready",  "ready": True},
-    {"name": "Image Generator","emoji": "🎨", "desc": "Type words, get a picture",         "status": "Ready",  "ready": True},
-    {"name": "Text & Articles","emoji": "✍️", "desc": "Write articles, news, posts",       "status": "Ready",  "ready": True},
-    {"name": "Resume Maker",  "emoji": "📄", "desc": "Make a job resume in seconds",       "status": "Ready", "ready": True},
-    {"name": "Reels Maker",   "emoji": "🎬", "desc": "AI video or your own pics",           "status": "Ready",   "ready": True},
-    {"name": "YouTube Shorts","emoji": "📱", "desc": "AI video or your own pics",           "status": "Ready",   "ready": True},
-    {"name": "Video Editing", "emoji": "✂️", "desc": "Cut, voice-over, vertical videos",     "status": "Ready", "ready": True},
+    {"name": "Chat AI",        "emoji": "💬", "desc": "Chat, or write articles & posts", "status": "Ready", "ready": True},
+    {"name": "Image Studio",   "emoji": "🎨", "desc": "Make, edit and chat with pictures", "status": "Ready", "ready": True},
+    {"name": "Video Maker",    "emoji": "🎬", "desc": "AI video, or your own pics + voice", "status": "Ready", "ready": True},
+    {"name": "Resume Maker",   "emoji": "📄", "desc": "Make a job resume in seconds",      "status": "Ready", "ready": True},
+    {"name": "Text to Speech", "emoji": "🔊", "desc": "Turn words into a natural voice",   "status": "Ready", "ready": True},
+    {"name": "Thumbnail Maker","emoji": "🖼️", "desc": "YouTube thumbnails with big text",  "status": "Ready", "ready": True},
+    {"name": "QR Code",        "emoji": "🔗", "desc": "Make a QR code for any link",       "status": "Ready", "ready": True},
 ]
 
 # ---- 5. Show the page ----
@@ -828,52 +755,84 @@ if page == "Home":
 
 elif page == "Chat AI":
     st.markdown('<div class="page-hero"><div class="ph-title">💬 Chat AI</div>'
-                '<div class="ph-sub">Talk with AI. Add a photo to ask about it, like ChatGPT.</div></div>',
+                '<div class="ph-sub">Talk with AI like ChatGPT, or switch to Write mode '
+                'for articles, posts and emails.</div></div>',
                 unsafe_allow_html=True)
 
-    # Optional: upload a picture so the AI can see it.
-    # Tucked inside a folder so the typing box always fits on the screen.
-    with st.expander("📷 Add a photo to your message (optional)"):
-        chat_img = st.file_uploader("Upload a photo (JPG or PNG)",
-                                    type=["jpg", "jpeg", "png"], key="chat_img")
+    chat_mode = st.radio("What do you want to do?",
+                         ["💬 Chat", "✍️ Write (articles, posts, emails)"],
+                         horizontal=True, key="chat_mode")
 
-    # Remember old messages so they don't disappear
-    if "messages" not in st.session_state:
-        st.session_state.messages = []
+    if chat_mode.startswith("✍️"):
+        # ---- Write mode (the old Text & Articles tool, folded in here) ----
+        kind = st.selectbox("What do you want to write?",
+                            ["Blog Article", "News Story", "Social Media Post",
+                             "YouTube Title + Description", "Email"])
+        topic = st.text_input("About what? (example: healthy food, cricket, mobile phones)",
+                              key="write_topic")
+        length = st.select_slider("How long?", options=["Short", "Medium", "Long"])
 
-    # Show all old messages
-    for m in st.session_state.messages:
-        with st.chat_message(m["role"]):
-            if m.get("image"):
-                st.image(m["image"], width=220)
-            st.write(m["content"])
+        if st.button("Write it!", key="write_btn"):
+            if not topic.strip():
+                st.warning("Type a topic first!")
+            else:
+                with st.spinner("AI is writing... please wait"):
+                    instructions = (f"You are a professional writer. "
+                                    f"Write a {kind} about: {topic}. "
+                                    f"Length: {length}. "
+                                    f"Make it interesting and easy to read. Use headings and short paragraphs.")
+                    result = ask_text_ai(instructions)
+                    if not result:
+                        st.error(BUSY_MSG)
+                    else:
+                        st.markdown(result)
+                        st.download_button("Download as .txt", result.encode("utf-8"),
+                                           file_name="my_text.txt", mime="text/plain")
+    else:
+        # ---- Chat mode ----
+        # Optional: upload a picture so the AI can see it.
+        # Tucked inside a folder so the typing box always fits on the screen.
+        with st.expander("📷 Add a photo to your message (optional)"):
+            chat_img = st.file_uploader("Upload a photo (JPG or PNG)",
+                                        type=["jpg", "jpeg", "png"], key="chat_img")
 
-    # The typing box at the bottom
-    prompt = st.chat_input("Type your message here...")
+        # Remember old messages so they don't disappear
+        if "messages" not in st.session_state:
+            st.session_state.messages = []
 
-    if prompt:
-        # Show what the user typed (and the picture, if any)
-        msg = {"role": "user", "content": prompt}
-        if chat_img is not None:
-            msg["image"] = chat_img.getvalue()
-        st.session_state.messages.append(msg)
-        with st.chat_message("user"):
+        # Show all old messages
+        for m in st.session_state.messages:
+            with st.chat_message(m["role"]):
+                if m.get("image"):
+                    st.image(m["image"], width=220)
+                st.write(m["content"])
+
+        # The typing box at the bottom
+        prompt = st.chat_input("Type your message here...")
+
+        if prompt:
+            # Show what the user typed (and the picture, if any)
+            msg = {"role": "user", "content": prompt}
+            if chat_img is not None:
+                msg["image"] = chat_img.getvalue()
+            st.session_state.messages.append(msg)
+            with st.chat_message("user"):
+                if msg.get("image"):
+                    st.image(msg["image"], width=220)
+                st.write(prompt)
+
+            # Get the AI answer (with eyes if a picture was added)
             if msg.get("image"):
-                st.image(msg["image"], width=220)
-            st.write(prompt)
+                reply = ask_gemini_vision(prompt, msg["image"])
+            else:
+                reply = ask_text_ai(prompt) or BUSY_MSG
 
-        # Get the AI answer (with eyes if a picture was added)
-        if msg.get("image"):
-            reply = ask_gemini_vision(prompt, msg["image"])
-        else:
-            reply = ask_text_ai(prompt) or BUSY_MSG
+            st.session_state.messages.append({"role": "assistant", "content": reply})
+            with st.chat_message("assistant"):
+                st.write(reply)
 
-        st.session_state.messages.append({"role": "assistant", "content": reply})
-        with st.chat_message("assistant"):
-            st.write(reply)
-
-elif page == "Image Generator":
-    st.markdown('<div class="main-title">Image Generator</div>', unsafe_allow_html=True)
+elif page == "Image Studio":
+    st.markdown('<div class="main-title">Image Studio</div>', unsafe_allow_html=True)
     st.markdown('<div class="sub-title">Make a new picture, or upload your own photo and ask AI to change it.</div>',
                 unsafe_allow_html=True)
 
@@ -1033,35 +992,6 @@ elif page == "Image Generator":
             st.download_button("Download this picture", st.session_state["ig_chat_img"],
                                file_name="my_ai_picture.jpg", mime="image/jpeg")
 
-elif page == "Text & Articles":
-    st.markdown('<div class="main-title">Text & Articles</div>', unsafe_allow_html=True)
-    st.markdown('<div class="sub-title">Write articles, news and posts in seconds.</div>',
-                unsafe_allow_html=True)
-
-    kind = st.selectbox("What do you want to write?",
-                        ["Blog Article", "News Story", "Social Media Post",
-                         "YouTube Title + Description", "Email"])
-    topic = st.text_input("About what? (example: healthy food, cricket, mobile phones)")
-    length = st.select_slider("How long?", options=["Short", "Medium", "Long"])
-
-    if st.button("Write it!"):
-        if not topic.strip():
-            st.warning("Type a topic first!")
-        else:
-            with st.spinner("AI is writing... please wait"):
-                # The "prompt trick": tell the AI its job clearly and it writes much better
-                instructions = (f"You are a professional writer. "
-                                f"Write a {kind} about: {topic}. "
-                                f"Length: {length}. "
-                                f"Make it interesting and easy to read. Use headings and short paragraphs.")
-                result = ask_text_ai(instructions)
-                if not result:
-                    st.error(BUSY_MSG)
-                else:
-                    st.markdown(result)
-                    st.download_button("Download as .txt", result.encode("utf-8"),
-                                       file_name="my_text.txt", mime="text/plain")
-
 elif page == "Resume Maker":
     st.markdown('<div class="page-hero"><div class="ph-title">📄 Resume Maker</div>'
                 '<div class="ph-sub">Fill in the boxes and AI will write your resume. '
@@ -1210,50 +1140,55 @@ elif page == "Resume Maker":
         st.info("👆 Fill in your details above and press **Write my resume**. "
                 "After that you can type any change you want in the box at the bottom.")
 
-elif page == "Reels Maker":
-    st.markdown('<div class="main-title">Reels Maker</div>', unsafe_allow_html=True)
-    st.markdown('<div class="sub-title">Two ways to make a Reels: let AI do everything, '
-                'or write your own script and use your own pictures.</div>',
+elif page == "Video Maker":
+    st.markdown('<div class="main-title">Video Maker</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sub-title">Make a short vertical video for Instagram Reels or '
+                'YouTube Shorts — let AI do everything, or use your own script and pictures.</div>',
                 unsafe_allow_html=True)
+
+    platform = st.radio("Where will you post it?",
+                        ["Instagram Reels", "YouTube Shorts"],
+                        horizontal=True, key="vm_platform")
+    line_count = 5 if platform.startswith("Instagram") else 6
 
     mode = st.radio("How do you want to make it?",
                     ["Easy: AI does everything", "My way: my own script + pictures"],
-                    key="reels_mode")
+                    key="vm_mode")
 
     if mode.startswith("Easy"):
-        topic = st.text_input("What is your reels about? (example: 5 amazing facts about space)",
-                              key="reels_topic")
+        topic = st.text_input("What is your video about? (example: 5 amazing facts about space)",
+                              key="vm_topic")
 
-        if st.button("Write my script"):
+        if st.button("Write my script", key="vm_script_btn"):
             if not topic.strip():
                 st.warning("Type a topic first!")
             else:
                 with st.spinner("AI is writing the script... please wait"):
                     instructions = (
-                        f"You are a viral Instagram Reels script writer. "
-                        f"Write a script for a short video about: {topic}\n\n"
+                        f"You are a viral {platform} script writer. "
+                        f"Write a script for a short vertical video about: {topic}\n\n"
                         f"Rules:\n"
-                        f"1. Exactly 5 lines. Each line is one scene "
+                        f"1. Exactly {line_count} lines. Each line is one scene "
                         f"(later, one picture will show per line).\n"
                         f"2. Make line 1 a strong hook that makes people stop scrolling.\n"
                         f"3. Keep every line under 12 words. Simple, punchy English.\n"
-                        f"4. Write ONLY the 5 lines, each starting with '- '. "
+                        f"4. Write ONLY the {line_count} lines, each starting with '- '. "
                         f"No headings, no numbers, no extra text."
                     )
-                    st.session_state["reels_script"] = ask_text_ai(instructions) or BUSY_MSG
+                    st.session_state["vm_script"] = ask_text_ai(instructions) or BUSY_MSG
     else:
         st.markdown("**Step 1:** Write your script. One line = one scene of the video.")
         my_script = st.text_area("Your script (one line per scene, example:  Welcome to my shop!)",
-                                 height=180, key="reels_my_script")
+                                 height=180, key="vm_my_script")
         st.markdown("**Step 2:** Upload your pictures in the same order as your lines.")
         my_files = st.file_uploader("Upload pictures (JPG or PNG)",
                                     type=["jpg", "jpeg", "png"], accept_multiple_files=True,
-                                    key="reels_my_files")
+                                    key="vm_my_files")
         st.caption("Tip: upload one picture per line. The voice reads the lines while your pictures show.")
 
     # Get the script lines from whatever source the user chose
     if mode.startswith("Easy"):
-        lines = parse_script_lines(st.session_state["reels_script"]) if "reels_script" in st.session_state else None
+        lines = parse_script_lines(st.session_state["vm_script"]) if "vm_script" in st.session_state else None
     else:
         lines = parse_script_lines(my_script) if my_script.strip() else None
 
@@ -1266,25 +1201,25 @@ elif page == "Reels Maker":
             "en-US-JennyNeural (US woman)",
             "en-US-GuyNeural (US man)",
             "en-IN-NeerjaNeural (India woman)",
-            "en-IN-PrabhatNeural (India man)"], key="reels_voice_sel")
+            "en-IN-PrabhatNeural (India man)"], key="vm_voice_sel")
         voice_code = voice_label.split(" ")[0]
 
-        if st.button("Make voice", key="reels_voice_btn"):
+        if st.button("Make voice", key="vm_voice_btn"):
             with st.spinner("AI is speaking... please wait"):
                 spoken_text = ". ".join(lines)
                 voice_file = make_voice(spoken_text, voice=voice_code)
-                st.session_state["reels_voice"] = voice_file
+                st.session_state["vm_voice"] = voice_file
             st.success("Voice ready! Play it below.")
             st.audio(open(voice_file, "rb").read(), format="audio/mp3")
 
         st.markdown("### Pictures")
         if mode.startswith("Easy"):
-            if st.button("Make pictures", key="reels_pics_btn"):
+            if st.button("Make pictures", key="vm_pics_btn"):
                 with st.spinner("AI is drawing the scenes... this can take 1-3 minutes"):
                     progress = st.progress(0)
                     images = []
                     for i, line in enumerate(lines):
-                        prompt = (f"Instagram Reels scene, cinematic photo style: {line}. "
+                        prompt = (f"{platform} scene, cinematic photo style: {line}. "
                                   f"Vibrant colors, dramatic lighting, NO text on the image")
                         img_bytes, err = ask_scene_image(prompt)
                         if err:
@@ -1294,11 +1229,11 @@ elif page == "Reels Maker":
                         progress.progress((i + 1) / len(lines))
                     progress.empty()
                     if images:
-                        st.session_state["reels_images"] = images
+                        st.session_state["vm_images"] = images
 
         # Pictures from whatever source the user chose
         if mode.startswith("Easy"):
-            images = st.session_state["reels_images"] if "reels_images" in st.session_state else None
+            images = st.session_state["vm_images"] if "vm_images" in st.session_state else None
         else:
             images = [f.getvalue() for f in my_files] if my_files else None
 
@@ -1310,248 +1245,118 @@ elif page == "Reels Maker":
                     st.image(img, use_container_width=True)
 
         st.markdown("### Video")
-        if st.button("Make video", key="reels_video_btn", type="primary"):
+        if st.button("Make video", key="vm_video_btn", type="primary"):
             if not images:
                 st.warning("Make pictures first!" if mode.startswith("Easy")
                            else "Upload at least one picture first!")
             else:
                 with st.spinner("Putting voice + pictures together... this takes 1-2 minutes"):
                     # No voice yet? Make one quietly with the chosen voice.
-                    if "reels_voice" not in st.session_state:
+                    if "vm_voice" not in st.session_state:
                         spoken_text = ". ".join(lines)
-                        st.session_state["reels_voice"] = make_voice(spoken_text, voice=voice_code)
-                    video_file = make_reels_video(images, st.session_state["reels_voice"])
-                    st.session_state["reels_video"] = video_file
-                st.success("Your Reels video is ready!")
+                        st.session_state["vm_voice"] = make_voice(spoken_text, voice=voice_code)
+                    out_name = "reels.mp4" if platform.startswith("Instagram") else "shorts.mp4"
+                    video_file = make_reels_video(images, st.session_state["vm_voice"],
+                                                  out_file=out_name)
+                    st.session_state["vm_video"] = video_file
+                st.success("Your video is ready!")
                 st.video(open(video_file, "rb").read(), format="video/mp4")
-                st.download_button("Download Reels (.mp4)",
+                st.download_button("Download video (.mp4)",
                                    open(video_file, "rb").read(),
-                                   file_name="my_reels.mp4", mime="video/mp4")
+                                   file_name=f"my_{out_name}", mime="video/mp4")
 
-elif page == "YouTube Shorts":
-    st.markdown('<div class="main-title">YouTube Shorts</div>', unsafe_allow_html=True)
-    st.markdown('<div class="sub-title">Two ways to make a Shorts: let AI do everything, '
-                'or write your own script and use your own pictures.</div>',
-                unsafe_allow_html=True)
+elif page == "Text to Speech":
+    st.markdown('<div class="main-title">Text to Speech</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sub-title">Type anything and get a natural-sounding voice as an '
+                'MP3. Free, and it never runs out of credits.</div>', unsafe_allow_html=True)
 
-    mode = st.radio("How do you want to make it?",
-                    ["Easy: AI does everything", "My way: my own script + pictures"],
-                    key="yt_mode")
+    tts_text = st.text_area("What should the voice say?", height=180, key="tts_text",
+                            placeholder="Example: Hello everyone, welcome to my channel!")
+    tts_label = st.selectbox("Choose a voice", [
+        "en-US-JennyNeural (US woman)",
+        "en-US-GuyNeural (US man)",
+        "en-IN-NeerjaNeural (India woman)",
+        "en-IN-PrabhatNeural (India man)"], key="tts_voice_sel")
 
-    if mode.startswith("Easy"):
-        topic = st.text_input("What is your Shorts about? (example: 3 tips to study better)",
-                              key="yt_topic")
-
-        if st.button("Write my script", key="yt_script_btn"):
-            if not topic.strip():
-                st.warning("Type a topic first!")
-            else:
-                with st.spinner("AI is writing the script... please wait"):
-                    instructions = (
-                        f"You are a viral YouTube Shorts script writer. "
-                        f"Write a script for a short vertical video about: {topic}\n\n"
-                        f"Rules:\n"
-                        f"1. Exactly 6 lines. Each line is one scene "
-                        f"(later, one picture will show per line).\n"
-                        f"2. Make line 1 a strong hook that makes people keep watching.\n"
-                        f"3. Keep every line under 12 words. Simple, punchy English.\n"
-                        f"4. Write ONLY the 6 lines, each starting with '- '. "
-                        f"No headings, no numbers, no extra text."
-                    )
-                    st.session_state["yt_script"] = ask_text_ai(instructions) or BUSY_MSG
-    else:
-        st.markdown("**Step 1:** Write your script. One line = one scene of the video.")
-        my_script = st.text_area("Your script (one line per scene, example:  Welcome to my channel!)",
-                                 height=180, key="yt_my_script")
-        st.markdown("**Step 2:** Upload your pictures in the same order as your lines.")
-        my_files = st.file_uploader("Upload pictures (JPG or PNG)",
-                                    type=["jpg", "jpeg", "png"], accept_multiple_files=True,
-                                    key="yt_my_files")
-        st.caption("Tip: upload one picture per line. The voice reads the lines while your pictures show.")
-
-    # Get the script lines from whatever source the user chose
-    if mode.startswith("Easy"):
-        lines = parse_script_lines(st.session_state["yt_script"]) if "yt_script" in st.session_state else None
-    else:
-        lines = parse_script_lines(my_script) if my_script.strip() else None
-
-    if lines:
-        st.markdown("### Your script")
-        st.markdown("\n".join("- " + ln for ln in lines))
-
-        st.markdown("### Voice")
-        voice_label = st.selectbox("Choose a voice", [
-            "en-US-JennyNeural (US woman)",
-            "en-US-GuyNeural (US man)",
-            "en-IN-NeerjaNeural (India woman)",
-            "en-IN-PrabhatNeural (India man)"], key="yt_voice_sel")
-        voice_code = voice_label.split(" ")[0]
-
-        if st.button("Make voice", key="yt_voice_btn"):
+    if st.button("Make audio", key="tts_btn", type="primary"):
+        if not tts_text.strip():
+            st.warning("Type some words first!")
+        else:
             with st.spinner("AI is speaking... please wait"):
-                spoken_text = ". ".join(lines)
-                voice_file = make_voice(spoken_text, voice=voice_code)
-                st.session_state["yt_voice"] = voice_file
-            st.success("Voice ready! Play it below.")
-            st.audio(open(voice_file, "rb").read(), format="audio/mp3")
+                vf = make_voice(tts_text.strip(), voice=tts_label.split(" ")[0],
+                                filename="speech.mp3")
+            st.success("Your audio is ready!")
+            st.audio(open(vf, "rb").read(), format="audio/mp3")
+            st.download_button("Download audio (.mp3)", open(vf, "rb").read(),
+                               file_name="my_speech.mp3", mime="audio/mpeg")
 
-        st.markdown("### Pictures")
-        if mode.startswith("Easy"):
-            if st.button("Make pictures", key="yt_pics_btn"):
-                with st.spinner("AI is drawing the scenes... this can take 1-3 minutes"):
-                    progress = st.progress(0)
-                    images = []
-                    for i, line in enumerate(lines):
-                        prompt = (f"YouTube Shorts scene, cinematic photo style: {line}. "
-                                  f"Vibrant colors, dramatic lighting, NO text on the image")
-                        img_bytes, err = ask_scene_image(prompt)
-                        if err:
-                            st.error(f"Scene {i+1} failed ({err}). Try again in a minute.")
-                            break
-                        images.append(img_bytes)
-                        progress.progress((i + 1) / len(lines))
-                    progress.empty()
-                    if images:
-                        st.session_state["yt_images"] = images
+elif page == "Thumbnail Maker":
+    st.markdown('<div class="main-title">Thumbnail Maker</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sub-title">Make a 1280x720 YouTube thumbnail: an AI background '
+                'with your big title text on top.</div>', unsafe_allow_html=True)
 
-        # Pictures from whatever source the user chose
-        if mode.startswith("Easy"):
-            images = st.session_state["yt_images"] if "yt_images" in st.session_state else None
+    th_title = st.text_input("Big title text on the thumbnail", key="th_title",
+                             placeholder="Example: I TRIED THIS FOR 30 DAYS!")
+    th_bg = st.text_input("Background idea (the AI picture behind the text)", key="th_bg",
+                          placeholder="Example: surprised face, bright studio, dramatic lighting")
+    col_a, col_b = st.columns(2)
+    with col_a:
+        th_color = st.selectbox("Text color", ["White", "Black", "Yellow", "Red"], key="th_color")
+    with col_b:
+        th_pos = st.selectbox("Text position", ["Middle", "Top", "Bottom"], key="th_pos")
+
+    if st.button("Make thumbnail", key="th_btn", type="primary"):
+        if not th_title.strip():
+            st.warning("Type the title text first!")
         else:
-            images = [f.getvalue() for f in my_files] if my_files else None
-
-        if images:
-            st.success(f"{len(images)} scene pictures ready!")
-            cols = st.columns(3)
-            for i, img in enumerate(images):
-                with cols[i % 3]:
-                    st.image(img, use_container_width=True)
-
-        st.markdown("### Video")
-        if st.button("Make video", key="yt_video_btn", type="primary"):
-            if not images:
-                st.warning("Make pictures first!" if mode.startswith("Easy")
-                           else "Upload at least one picture first!")
+            with st.spinner("Making your background picture... please wait"):
+                bg_prompt = th_bg.strip() or th_title.strip()
+                scene = (f"YouTube thumbnail background, bold, colorful, high contrast, "
+                         f"16:9, NO text: {bg_prompt}")
+                img_bytes, err = ask_scene_image(scene)
+            if err:
+                st.error("Sorry, the picture service is busy or out of daily free credits. "
+                         "It resets every day — please try again tomorrow.")
             else:
-                with st.spinner("Putting voice + pictures together... this takes 1-2 minutes"):
-                    # No voice yet? Make one quietly with the chosen voice.
-                    if "yt_voice" not in st.session_state:
-                        spoken_text = ". ".join(lines)
-                        st.session_state["yt_voice"] = make_voice(spoken_text, voice=voice_code)
-                    video_file = make_reels_video(images, st.session_state["yt_voice"],
-                                                  out_file="shorts.mp4")
-                    st.session_state["yt_video"] = video_file
-                st.success("Your YouTube Shorts video is ready!")
-                st.video(open(video_file, "rb").read(), format="video/mp4")
-                st.download_button("Download Shorts (.mp4)",
-                                   open(video_file, "rb").read(),
-                                   file_name="my_shorts.mp4", mime="video/mp4")
+                import io
+                from PIL import Image
+                img = Image.open(io.BytesIO(img_bytes)).convert("RGB").resize((1280, 720))
+                buf = io.BytesIO()
+                img.save(buf, format="PNG")
+                out = write_text_on_photo(buf.getvalue(), th_title.strip(),
+                                          position=th_pos.lower(), color=th_color.lower(),
+                                          size="Big")
+                st.success("Your thumbnail is ready!")
+                st.image(out, use_container_width=True)
+                st.download_button("Download thumbnail (.png)", out,
+                                   file_name="my_thumbnail.png", mime="image/png")
 
-elif page == "Video Editing":
-    st.markdown('<div class="main-title">Video Editing</div>', unsafe_allow_html=True)
-    st.markdown('<div class="sub-title">Upload your video, cut the part you want, add an AI voice-over, '
-                'and make it vertical for Reels and Shorts.</div>',
-                unsafe_allow_html=True)
+elif page == "QR Code":
+    st.markdown('<div class="main-title">QR Code</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sub-title">Turn any link or text into a QR code you can download '
+                'and print. Free and instant.</div>', unsafe_allow_html=True)
 
-    video_file = st.file_uploader("Upload your video (MP4 or MOV)", type=["mp4", "mov"],
-                                  key="ve_file")
-    if video_file is not None:
-        st.video(video_file, format="video/mp4")
-
-        import tempfile
-        tmp = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False)
-        tmp.write(video_file.getvalue())
-        tmp.close()
-
-        # Remember which video we are working on (a new upload resets it)
-        if st.session_state.get("ve_upload_name") != video_file.name:
-            st.session_state["ve_current"] = tmp.name
-            st.session_state["ve_upload_name"] = video_file.name
-            st.session_state.pop("ve_cut_done", None)
-
-        try:
-            dur = get_video_duration(tmp.name)
-        except Exception:
-            dur = None
-            st.error("Sorry, I could not read this video. Please try an MP4 file.")
-
-        if dur:
-            st.write(f"Your video is **{dur:.1f} seconds** long.")
-            start, end = st.slider("Keep this part (move the two dots)",
-                                   0.0, float(dur), (0.0, float(dur)), step=0.5,
-                                   key="ve_slider")
-            st.write(f"New video: from **{start:.1f}s** to **{end:.1f}s** "
-                     f"= **{end - start:.1f} seconds**")
-
-            if st.button("Cut and download", key="ve_cut_btn", type="primary"):
-                if end - start < 0.5:
-                    st.warning("Pick a bigger part — the two dots are too close together.")
-                else:
-                    with st.spinner("Cutting your video... this can take a minute"):
-                        out = cut_video(tmp.name, start, end, out_file="edited.mp4")
-                    st.session_state["ve_current"] = out
-                    st.session_state["ve_cut_done"] = True
-                    st.success("Your cut video is ready!")
-                    st.video(out, format="video/mp4")
-                    st.download_button("Download edited video",
-                                       open(out, "rb").read(),
-                                       file_name="edited.mp4", mime="video/mp4")
-
-        st.markdown("### Voice-over")
-        if st.session_state.get("ve_cut_done"):
-            st.caption("The voice will be added to your CUT video above.")
+    qr_data = st.text_input("Link or text", key="qr_data",
+                            placeholder="Example: https://yoursite.com")
+    if st.button("Make QR code", key="qr_btn", type="primary"):
+        if not qr_data.strip():
+            st.warning("Type a link or some text first!")
         else:
-            st.caption("The voice will be added to your full video.")
-        voice_words = st.text_area("What should the voice say?",
-                                   height=110, key="ve_words",
-                                   placeholder="Example: Hello everyone, welcome to my video! Today I will show you...")
-        voice_label = st.selectbox("Choose a voice", [
-            "en-US-JennyNeural (US woman)",
-            "en-US-GuyNeural (US man)",
-            "en-IN-NeerjaNeural (India woman)",
-            "en-IN-PrabhatNeural (India man)"], key="ve_voice_sel")
-        voice_code = voice_label.split(" ")[0]
-        keep_sound = st.radio("What about the video's own sound?", [
-            "Only my voice (video goes silent)",
-            "Keep the video sound quiet under my voice"], key="ve_keep_radio")
-
-        if st.button("Make voice", key="ve_voice_btn"):
-            if not voice_words.strip():
-                st.warning("Type what the voice should say first!")
-            else:
-                with st.spinner("AI is speaking... please wait"):
-                    vf = make_voice(voice_words.strip(), voice=voice_code)
-                    st.session_state["ve_voice"] = vf
-                st.success("Voice ready! Play it below.")
-                st.audio(open(vf, "rb").read(), format="audio/mp3")
-
-        if st.button("Add voice to video", key="ve_addvoice_btn", type="primary"):
-            if "ve_voice" not in st.session_state:
-                st.warning("Click 'Make voice' first!")
-            else:
-                with st.spinner("Adding voice to your video... this can take 1-2 minutes"):
-                    out2 = add_voice_to_video(
-                        st.session_state["ve_current"], st.session_state["ve_voice"],
-                        out_file="edited_with_voice.mp4",
-                        keep_original=(keep_sound.startswith("Keep")))
-                st.session_state["ve_current"] = out2
-                st.success("Your video with voice-over is ready!")
-                st.video(out2, format="video/mp4")
-                st.download_button("Download video with voice",
-                                   open(out2, "rb").read(),
-                                   file_name="edited_with_voice.mp4", mime="video/mp4")
-
-        st.markdown("### Make it vertical (for Reels & Shorts)")
-        st.caption("Cuts the middle 9:16 piece of your current video and makes it 1080x1920. "
-                   "If you already cut it or added a voice, this uses that version.")
-        if st.button("Make vertical video", key="ve_vert_btn", type="primary"):
-            with st.spinner("Making your video vertical... this can take a minute"):
-                out3 = make_vertical(st.session_state["ve_current"], out_file="vertical.mp4")
-            st.session_state["ve_current"] = out3
-            st.success("Your vertical video is ready!")
-            st.video(out3, format="video/mp4")
-            st.download_button("Download vertical video", open(out3, "rb").read(),
-                               file_name="vertical.mp4", mime="video/mp4")
+            try:
+                import io
+                import qrcode
+                qr = qrcode.QRCode(box_size=10, border=2)
+                qr.add_data(qr_data.strip())
+                qr.make(fit=True)
+                img = qr.make_image(fill_color="black", back_color="white")
+                buf = io.BytesIO()
+                img.save(buf, format="PNG")
+                st.success("Here is your QR code — scan it or download it.")
+                st.image(buf.getvalue())
+                st.download_button("Download QR (.png)", buf.getvalue(),
+                                   file_name="qr_code.png", mime="image/png")
+            except ImportError:
+                st.error("The QR library is not installed yet. Add 'qrcode' to requirements.txt.")
 
 else:
     # Placeholder page for every tool (we build them one by one)
