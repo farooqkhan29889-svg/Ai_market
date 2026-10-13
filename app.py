@@ -393,15 +393,19 @@ def make_resume_pdf(text, header=None):
     return bytes(pdf.output())
 
 # ---- Free AI voice (Microsoft edge-tts, no key needed) ----
-def make_voice(text, voice="en-US-JennyNeural", filename="voice.mp3"):
+def make_voice(text, voice="en-US-JennyNeural", filename="voice.mp3", timeout=60):
     import asyncio
     import edge_tts
     async def _run():
         communicate = edge_tts.Communicate(text, voice=voice)
         await communicate.save(filename)
     loop = asyncio.new_event_loop()
-    loop.run_until_complete(_run())
-    loop.close()
+    try:
+        loop.run_until_complete(asyncio.wait_for(_run(), timeout=timeout))
+    except asyncio.TimeoutError:
+        raise RuntimeError("The voice service is taking too long. Please try again in a minute.")
+    finally:
+        loop.close()
     return filename
 
 # ---- Turn script text into clean scene lines (works for AI and user-written scripts) ----
@@ -427,7 +431,7 @@ def ask_scene_image(prompt):
         for attempt in range(2):
             try:
                 r = requests.post(url, headers={"Authorization": f"Bearer {api_token}"},
-                                  json={"prompt": prompt}, timeout=(10, 120))
+                                  json={"prompt": prompt}, timeout=(10, 60))
                 if r.status_code == 200:
                     img_b64 = r.json().get("result", {}).get("image")
                     if img_b64:
@@ -1260,6 +1264,13 @@ elif page == "Video Maker":
     else:
         lines = parse_script_lines(my_script) if my_script.strip() else None
 
+    # Keep the render small: too many scenes crashes Streamlit's free 1 GB worker.
+    MAX_SCENES = 8
+    if lines and len(lines) > MAX_SCENES:
+        st.warning(f"That's {len(lines)} scenes — too many for a smooth video. "
+                   f"I'll use the first {MAX_SCENES}.")
+        lines = lines[:MAX_SCENES]
+
     if lines:
         st.markdown("### Your script")
         st.markdown("\n".join("- " + ln for ln in lines))
@@ -1275,10 +1286,15 @@ elif page == "Video Maker":
         if st.button("Make voice", key="vm_voice_btn"):
             with st.spinner("AI is speaking... please wait"):
                 spoken_text = ". ".join(lines)
-                voice_file = make_voice(spoken_text, voice=voice_code)
-                st.session_state["vm_voice"] = voice_file
-            st.success("Voice ready! Play it below.")
-            st.audio(open(voice_file, "rb").read(), format="audio/mp3")
+                try:
+                    voice_file = make_voice(spoken_text, voice=voice_code)
+                    st.session_state["vm_voice"] = voice_file
+                except RuntimeError as e:
+                    voice_file = None
+                    st.error(str(e))
+            if voice_file:
+                st.success("Voice ready! Play it below.")
+                st.audio(open(voice_file, "rb").read(), format="audio/mp3")
 
         st.markdown("### Pictures")
         if mode.startswith("Easy"):
@@ -1319,19 +1335,24 @@ elif page == "Video Maker":
                            else "Upload at least one picture first!")
             else:
                 with st.spinner("Putting voice + pictures together... this takes 1-2 minutes"):
-                    # No voice yet? Make one quietly with the chosen voice.
-                    if "vm_voice" not in st.session_state:
-                        spoken_text = ". ".join(lines)
-                        st.session_state["vm_voice"] = make_voice(spoken_text, voice=voice_code)
-                    out_name = "reels.mp4" if platform.startswith("Instagram") else "shorts.mp4"
-                    video_file = make_reels_video(images, st.session_state["vm_voice"],
-                                                  out_file=out_name)
-                    st.session_state["vm_video"] = video_file
-                st.success("Your video is ready!")
-                st.video(open(video_file, "rb").read(), format="video/mp4")
-                st.download_button("Download video (.mp4)",
-                                   open(video_file, "rb").read(),
-                                   file_name=f"my_{out_name}", mime="video/mp4")
+                    try:
+                        # No voice yet? Make one quietly with the chosen voice.
+                        if "vm_voice" not in st.session_state:
+                            spoken_text = ". ".join(lines)
+                            st.session_state["vm_voice"] = make_voice(spoken_text, voice=voice_code)
+                        out_name = "reels.mp4" if platform.startswith("Instagram") else "shorts.mp4"
+                        video_file = make_reels_video(images, st.session_state["vm_voice"],
+                                                      out_file=out_name)
+                        st.session_state["vm_video"] = video_file
+                    except RuntimeError as e:
+                        video_file = None
+                        st.error(str(e))
+                if video_file:
+                    st.success("Your video is ready!")
+                    st.video(open(video_file, "rb").read(), format="video/mp4")
+                    st.download_button("Download video (.mp4)",
+                                       open(video_file, "rb").read(),
+                                       file_name=f"my_{out_name}", mime="video/mp4")
 
 elif page == "Text to Speech":
     st.markdown('<div class="page-hero"><div class="ph-title">🔊 Text to Speech</div>'
@@ -1352,12 +1373,17 @@ elif page == "Text to Speech":
             st.warning("Type some words first!")
         else:
             with st.spinner("AI is speaking... please wait"):
-                vf = make_voice(tts_text.strip(), voice=tts_label.split(" ")[0],
-                                filename="speech.mp3")
-            st.success("Your audio is ready!")
-            st.audio(open(vf, "rb").read(), format="audio/mp3")
-            st.download_button("Download audio (.mp3)", open(vf, "rb").read(),
-                               file_name="my_speech.mp3", mime="audio/mpeg")
+                try:
+                    vf = make_voice(tts_text.strip(), voice=tts_label.split(" ")[0],
+                                    filename="speech.mp3")
+                except RuntimeError as e:
+                    vf = None
+                    st.error(str(e))
+            if vf:
+                st.success("Your audio is ready!")
+                st.audio(open(vf, "rb").read(), format="audio/mp3")
+                st.download_button("Download audio (.mp3)", open(vf, "rb").read(),
+                                   file_name="my_speech.mp3", mime="audio/mpeg")
 
 elif page == "Thumbnail Maker":
     st.markdown('<div class="page-hero"><div class="ph-title">🖼️ Thumbnail Maker</div>'
