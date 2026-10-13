@@ -1209,9 +1209,9 @@ elif page == "Resume Maker":
                 "After that you can type any change you want in the box at the bottom.")
 
 elif page == "Video Maker":
-    st.markdown('<div class="main-title">Video Maker</div>', unsafe_allow_html=True)
-    st.markdown('<div class="sub-title">Make a short vertical video for Instagram Reels or '
-                'YouTube Shorts — let AI do everything, or use your own script and pictures.</div>',
+    st.markdown('<div class="page-hero"><div class="ph-title">🎬 Video Maker</div>'
+                '<div class="ph-sub">Make a short vertical video for Instagram Reels or '
+                'YouTube Shorts — let AI do everything, or use your own script and pictures.</div></div>',
                 unsafe_allow_html=True)
 
     platform = st.radio("Where will you post it?",
@@ -1334,9 +1334,10 @@ elif page == "Video Maker":
                                    file_name=f"my_{out_name}", mime="video/mp4")
 
 elif page == "Text to Speech":
-    st.markdown('<div class="main-title">Text to Speech</div>', unsafe_allow_html=True)
-    st.markdown('<div class="sub-title">Type anything and get a natural-sounding voice as an '
-                'MP3. Free, and it never runs out of credits.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="page-hero"><div class="ph-title">🔊 Text to Speech</div>'
+                '<div class="ph-sub">Type anything and get a natural-sounding voice as an '
+                'MP3. Free, and it never runs out of credits.</div></div>',
+                unsafe_allow_html=True)
 
     tts_text = st.text_area("What should the voice say?", height=180, key="tts_text",
                             placeholder="Example: Hello everyone, welcome to my channel!")
@@ -1359,9 +1360,10 @@ elif page == "Text to Speech":
                                file_name="my_speech.mp3", mime="audio/mpeg")
 
 elif page == "Thumbnail Maker":
-    st.markdown('<div class="main-title">Thumbnail Maker</div>', unsafe_allow_html=True)
-    st.markdown('<div class="sub-title">Make a 1280x720 YouTube thumbnail: an AI background '
-                'with your big title text on top.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="page-hero"><div class="ph-title">🖼️ Thumbnail Maker</div>'
+                '<div class="ph-sub">Make a 1280x720 YouTube thumbnail: an AI background '
+                'with your big title text on top.</div></div>',
+                unsafe_allow_html=True)
 
     th_title = st.text_input("Big title text on the thumbnail", key="th_title",
                              placeholder="Example: I TRIED THIS FOR 30 DAYS!")
@@ -1400,9 +1402,10 @@ elif page == "Thumbnail Maker":
                                    file_name="my_thumbnail.png", mime="image/png")
 
 elif page == "QR Code":
-    st.markdown('<div class="main-title">QR Code</div>', unsafe_allow_html=True)
-    st.markdown('<div class="sub-title">Turn any link or text into a QR code you can download '
-                'and print. Free and instant.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="page-hero"><div class="ph-title">🔗 QR Code</div>'
+                '<div class="ph-sub">Turn any link or text into a QR code you can download '
+                'and print. Free and instant.</div></div>',
+                unsafe_allow_html=True)
 
     qr_data = st.text_input("Link or text", key="qr_data",
                             placeholder="Example: https://yoursite.com")
