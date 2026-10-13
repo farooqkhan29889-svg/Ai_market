@@ -685,6 +685,60 @@ st.markdown("""
         font-size: 14px;
         margin-top: 2px;
     }
+    /* Tabs: purple active text + a soft underline bar */
+    div[data-testid="stTabs"] button {
+        color: #6b7280;
+        font-weight: 600;
+        font-size: 15px;
+    }
+    div[data-testid="stTabs"] button:hover {
+        color: #7c3aed;
+    }
+    div[data-testid="stTabs"] [aria-selected="true"] {
+        color: #7c3aed;
+    }
+    div[data-testid="stTabs"] {
+        background: transparent;
+    }
+    /* Primary buttons: purple gradient, lift on hover */
+    div[data-testid="stButton"] button[kind="primary"],
+    div[data-testid="stDownloadButton"] button[kind="primary"] {
+        background: linear-gradient(135deg, #6d28d9, #9333ea 55%, #ec4899);
+        color: #ffffff;
+        border: none;
+        border-radius: 10px;
+        font-weight: 700;
+        padding: 0.55rem 1.3rem;
+        transition: transform 0.15s, box-shadow 0.15s;
+    }
+    div[data-testid="stButton"] button[kind="primary"]:hover,
+    div[data-testid="stDownloadButton"] button[kind="primary"]:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(124, 58, 237, 0.35);
+        border: none;
+        color: #ffffff;
+    }
+    /* Secondary + download buttons: soft lavender outline */
+    div[data-testid="stButton"] button[kind="secondary"],
+    div[data-testid="stDownloadButton"] button {
+        border: 1px solid #ddd6fe;
+        border-radius: 10px;
+        color: #4c1d95;
+        background: #faf5ff;
+    }
+    div[data-testid="stButton"] button[kind="secondary"]:hover,
+    div[data-testid="stDownloadButton"] button:hover {
+        border-color: #a78bfa;
+        color: #6d28d9;
+        background: #f3e8ff;
+    }
+    /* A small labelled section header used inside tool pages */
+    .sec-label {
+        font-size: 15px;
+        font-weight: 700;
+        color: #4c1d95;
+        margin: 6px 0 2px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -840,15 +894,21 @@ elif page == "Chat AI":
                 st.write(reply)
 
 elif page == "Image Studio":
-    st.markdown('<div class="main-title">Image Studio</div>', unsafe_allow_html=True)
-    st.markdown('<div class="sub-title">Make a new picture, or upload your own photo and ask AI to change it.</div>',
+    st.markdown('<div class="page-hero"><div class="ph-title">🎨 Image Studio</div>'
+                '<div class="ph-sub">Make a new picture, edit your own photo, or chat with a '
+                'picture and keep changing it.</div></div>',
                 unsafe_allow_html=True)
 
-    tab_new, tab_edit, tab_chat = st.tabs(["Make a new picture", "Edit my photo", "Chat with pictures"])
+    tab_new, tab_edit, tab_chat = st.tabs(["✨ Make a new picture", "🖌️ Edit my photo",
+                                           "💬 Chat with pictures"])
 
     with tab_new:
-        prompt = st.text_input("What picture do you want? (English works best)", key="ig_prompt")
-        if st.button("Generate Image", key="ig_gen_btn"):
+        st.markdown('<div class="sec-label">Describe the picture you want</div>',
+                    unsafe_allow_html=True)
+        prompt = st.text_input("Type in English for the best results",
+                               key="ig_prompt",
+                               placeholder="example: a cute robot reading a book in a cozy room")
+        if st.button("Generate Image", key="ig_gen_btn", type="primary"):
             if not prompt.strip():
                 st.warning("Type something first!")
             else:
