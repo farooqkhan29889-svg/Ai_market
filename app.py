@@ -302,31 +302,73 @@ def write_text_on_photo(img_bytes, words, position="bottom", color="white", size
 # ---- Color palettes for professional resume PDF styling ----
 RESUME_THEMES = {
     "Modern Navy": {
-        "primary": (30, 58, 138),     # Classic Navy
-        "text": (30, 30, 30),
+        "primary": (30, 58, 138),     # Classic Navy #1e3a8a
+        "accent": (59, 130, 246),
+        "sidebar_bg": (244, 246, 250),
+        "text": (17, 24, 39),
+        "muted": (75, 85, 99),
+        "line": (226, 232, 240),
     },
     "Emerald Professional": {
-        "primary": (6, 95, 70),       # Forest / Emerald Green
-        "text": (30, 30, 30),
+        "primary": (6, 95, 70),       # Forest / Emerald Green #065f46
+        "accent": (16, 185, 129),
+        "sidebar_bg": (242, 248, 245),
+        "text": (17, 24, 39),
+        "muted": (75, 85, 99),
+        "line": (226, 232, 240),
     },
     "Crimson Executive": {
-        "primary": (159, 18, 57),     # Crimson Burgundy
-        "text": (30, 30, 30),
+        "primary": (159, 18, 57),     # Crimson Burgundy #9f1239
+        "accent": (225, 29, 72),
+        "sidebar_bg": (254, 242, 244),
+        "text": (17, 24, 39),
+        "muted": (75, 85, 99),
+        "line": (226, 232, 240),
     },
     "Royal Purple": {
-        "primary": (88, 28, 135),     # Royal Violet
-        "text": (30, 30, 30),
+        "primary": (88, 28, 135),     # Royal Violet #581c87
+        "accent": (147, 51, 234),
+        "sidebar_bg": (248, 244, 253),
+        "text": (17, 24, 39),
+        "muted": (75, 85, 99),
+        "line": (226, 232, 240),
     },
     "Classic Charcoal": {
-        "primary": (31, 41, 55),      # Elegant Dark Slate
-        "text": (30, 30, 30),
+        "primary": (31, 41, 55),      # Elegant Dark Slate #1f2937
+        "accent": (75, 85, 99),
+        "sidebar_bg": (245, 246, 248),
+        "text": (17, 24, 39),
+        "muted": (75, 85, 99),
+        "line": (226, 232, 240),
     },
 }
 
-# ---- Turn the resume text into a real PDF file ----
-def make_resume_pdf(text, header=None, theme="Modern Navy"):
+# ---- Turn the resume text into an executive-grade PDF file ----
+def make_resume_pdf(text, header=None, theme="Modern Navy", layout="Modern Clean"):
     from fpdf import FPDF
-    # The AI sometimes writes "smart" characters (fancy spaces, dashes, quotes).
+    import re
+
+    theme_info = RESUME_THEMES.get(theme, RESUME_THEMES["Modern Navy"])
+    pdf = FPDF("p", "mm", "A4")
+    pdf.set_auto_page_break(auto=False)
+    pdf.add_page()
+
+    # Font setup: prefer Calibri (clean, modern sans-serif), fallback to Arial or Helvetica
+    try:
+        pdf.add_font("ResumeFont", "", "C:/Windows/Fonts/calibri.ttf")
+        pdf.add_font("ResumeFont", "B", "C:/Windows/Fonts/calibrib.ttf")
+        pdf.add_font("ResumeFont", "I", "C:/Windows/Fonts/calibrii.ttf")
+        font = "ResumeFont"
+    except Exception:
+        try:
+            pdf.add_font("ResumeFont", "", "C:/Windows/Fonts/arial.ttf")
+            pdf.add_font("ResumeFont", "B", "C:/Windows/Fonts/arialbd.ttf")
+            pdf.add_font("ResumeFont", "I", "C:/Windows/Fonts/ariali.ttf")
+            font = "ResumeFont"
+        except Exception:
+            font = "Helvetica"
+
+    # Normalize typographic smart quotes and unicode dashes
     replacements = {
         "\u00a0": " ", "\u2002": " ", "\u2003": " ", "\u2009": " ",
         "\u2011": "-", "\u2013": "-", "\u2014": "-",
@@ -335,167 +377,213 @@ def make_resume_pdf(text, header=None, theme="Modern Navy"):
     for smart, normal in replacements.items():
         text = text.replace(smart, normal)
 
-    pdf = FPDF("p", "mm", "A4")
-    # Arial (a Unicode font) can print the real bullet dot. On computers without it
-    # we fall back to the built-in font and a plain "-" bullet.
-    try:
-        pdf.add_font("Body", "", "C:/Windows/Fonts/arial.ttf")
-        pdf.add_font("Body", "B", "C:/Windows/Fonts/arialbd.ttf")
-        font, bullet = "Body", "•"
-    except Exception:
-        font, bullet = "Helvetica", "-"
-        text = text.replace("•", "-").encode("latin-1", errors="replace").decode("latin-1")
+    if font == "Helvetica":
+        text = text.encode("latin-1", errors="replace").decode("latin-1")
 
-    theme_info = RESUME_THEMES.get(theme, RESUME_THEMES["Modern Navy"])
-    NAVY = theme_info["primary"]
-    INK = theme_info["text"]
-
-    import re
-    # The AI sometimes leaves instructions in brackets, like "[University Name]"
-    # or "[Year of Completion]". A customer must never see those in their PDF, so
-    # remove every bracketed note and drop the lines that had nothing else left.
+    # Strip bracketed placeholder instructions
     text = re.sub(r"\[[^\]]{0,60}\]", "", text)
-    lines = []
-    for raw in text.split("\n"):
-        if raw.strip() and not re.sub(r"^[\s#*\-•|:;,]+", "", raw).strip():
-            continue
-        lines.append(re.sub(r"\s*[|,;]\s*$", "", raw))
 
-    # The AI repeats the name / email / phone at the top. The header band shows
-    # those already, so drop the duplicate lines instead of printing them twice.
-    if header:
-        keys = [str(header.get(k, "")).strip().lower() for k in ("name", "email", "phone")]
-        keys = [k for k in keys if k]
-        keys += [p.strip().lower() for p in str(header.get("contact", "")).split("|") if len(p.strip()) > 3]
-        while lines:
-            first = lines[0].strip()
-            if not first:
-                lines.pop(0)
-                continue
-            if len(first) < 90 and any(k in first.lower() for k in keys):
-                lines.pop(0)
-                continue
-            break
-
-    # ---- Group the lines into sections (heading + its bullet lines) ----
+    # Parse into structured sections
+    lines = [ln.strip() for ln in text.split("\n") if ln.strip()]
     sections, pre = [], []
     for raw in lines:
-        line = raw.strip().replace("\t", " ")
-        if not line:
-            continue
-        if line.startswith("#"):
-            title = line.lstrip("#").strip().replace("*", "").replace("_", "")
+        if raw.startswith("## ") or (raw.startswith("# ") and not sections):
+            title = raw.lstrip("#").strip().replace("*", "").replace("_", "")
             if title.lower() in ("resume", "curriculum vitae", "cv"):
                 continue
             sections.append({"title": title, "body": []})
         elif sections:
-            sections[-1]["body"].append(line)
+            sections[-1]["body"].append(raw)
         else:
-            pre.append(line)
+            pre.append(raw)
     if pre:
         sections.insert(0, {"title": "", "body": pre})
 
-    # Short facts go in the narrow left column, the story goes on the right.
-    LEFT_KEYS = ("skill", "educat", "personal", "detail", "contact", "language",
-                 "certif", "interest", "declaration", "reference", "award", "hobby")
-    left_idx = {i for i, s in enumerate(sections)
-                if any(k in s["title"].lower() for k in LEFT_KEYS)}
-    left_secs = [s for i, s in enumerate(sections) if i in left_idx]
-    right_secs = [s for i, s in enumerate(sections) if i not in left_idx]
-    if not left_secs:  # nothing to put on the side -> one wide column
-        right_secs = sections
+    header = header or {}
+    clean_layout = "Modern Sidebar" if "sidebar" in layout.lower() else "Modern Clean"
 
-    MARGIN, GAP, BODY, LH = 14, 8, 9.5, 4.8
-    left_w = 62 if left_secs else 0
-    right_w = 210 - 2 * MARGIN - (left_w + GAP if left_secs else 0)
+    if clean_layout == "Modern Sidebar":
+        sb_w = 66
+        main_x = sb_w + 10
+        main_w = 210 - main_x - 14
 
-    pdf.set_auto_page_break(auto=False)
-    pdf.set_margins(MARGIN, MARGIN, MARGIN)
-    pdf.add_page()
+        # Full height sidebar background
+        pdf.set_fill_color(*theme_info["sidebar_bg"])
+        pdf.rect(0, 0, sb_w, 297, style="F")
 
-    # Dark blue band with the name, the job they want, and contact details
-    band_bottom = MARGIN
-    if header and header.get("name"):
-        band_h = 28 if (header.get("title") or header.get("contact")) else 20
-        pdf.set_fill_color(*NAVY)
-        pdf.rect(0, 0, 210, band_h, style="F")
-        pdf.set_y(6)
-        pdf.set_text_color(255, 255, 255)
-        pdf.set_font(font, "B", 20)
-        pdf.cell(0, 8, header["name"], new_x="LMARGIN", new_y="NEXT", align="C")
+        # Top accent bar on right side
+        pdf.set_fill_color(*theme_info["primary"])
+        pdf.rect(sb_w, 0, 210 - sb_w, 3.5, style="F")
+
+        SB_KEYS = ("contact", "skill", "educat", "personal", "detail", "certif", "language", "hobby")
+        sb_secs = [s for s in sections if any(k in s["title"].lower() for k in SB_KEYS)]
+        main_secs = [s for s in sections if not any(k in s["title"].lower() for k in SB_KEYS)]
+
+        # Right Main: Candidate Name & Target Title
+        pdf.set_xy(main_x, 14)
+        pdf.set_font(font, "B", 22)
+        pdf.set_text_color(*theme_info["text"])
+        pdf.cell(main_w, 8, header.get("name", "Candidate Name"), new_x="LMARGIN", new_y="NEXT")
+
         if header.get("title"):
-            pdf.set_font(font, "", 11)
-            pdf.cell(0, 6, header["title"], new_x="LMARGIN", new_y="NEXT", align="C")
-        if header.get("contact"):
-            pdf.set_font(font, "", 9)
-            pdf.multi_cell(0, 5, header["contact"], new_x="LMARGIN", new_y="NEXT", align="C")
-        band_bottom = band_h
-    pdf.set_text_color(*INK)
+            pdf.set_x(main_x)
+            pdf.set_font(font, "B", 11)
+            pdf.set_text_color(*theme_info["primary"])
+            pdf.cell(main_w, 6, header["title"].upper(), new_x="LMARGIN", new_y="NEXT")
 
-    def measure(sec, col_w):
-        """How tall a section will be, so we know when to start the next page."""
-        h = 0
-        if sec["title"]:
-            h += 6 + 3.2
-        pdf.set_font(font, "", BODY)
-        for line in sec["body"]:
-            if line[:2] in ("- ", "* ") or line.startswith("•"):
-                h += pdf.multi_cell(col_w - 6, LH, line.lstrip("-*• \t"),
-                                    dry_run=True, output="HEIGHT", markdown=True)
-            else:
-                h += pdf.multi_cell(col_w, LH, line,
-                                    dry_run=True, output="HEIGHT", markdown=True)
-        return h + 3
+        pdf.set_draw_color(*theme_info["line"])
+        pdf.line(main_x, pdf.get_y() + 2, 210 - 14, pdf.get_y() + 2)
+        pdf.set_y(pdf.get_y() + 5)
 
-    def draw(sec, x, y, col_w):
-        if sec["title"]:
-            pdf.set_xy(x, y)
-            pdf.set_font(font, "B", 10.5)
-            pdf.set_text_color(*NAVY)
-            pdf.cell(col_w, 6, sec["title"].upper())
-            pdf.set_draw_color(*NAVY)
-            pdf.set_line_width(0.35)
-            pdf.line(x, y + 6.8, x + col_w, y + 6.8)
-            y += 6 + 3.2
-            pdf.set_text_color(*INK)
-        pdf.set_font(font, "", BODY)
-        for line in sec["body"]:
-            pdf.set_xy(x, y)
-            if line[:2] in ("- ", "* ") or line.startswith("•"):
-                pdf.cell(6, LH, bullet)
-                pdf.multi_cell(col_w - 6, LH, line.lstrip("-*• \t"),
-                               new_x="LEFT", new_y="NEXT", markdown=True, align="L")
-            else:
-                pdf.multi_cell(col_w, LH, line,
-                               new_x="LEFT", new_y="NEXT", markdown=True, align="L")
+        # Left Sidebar: Contact details
+        pdf.set_xy(10, 14)
+        pdf.set_font(font, "B", 10.5)
+        pdf.set_text_color(*theme_info["primary"])
+        pdf.cell(sb_w - 18, 5.5, "CONTACT", new_x="LMARGIN", new_y="NEXT")
+        pdf.set_draw_color(*theme_info["primary"])
+        pdf.line(10, pdf.get_y() + 1, sb_w - 8, pdf.get_y() + 1)
+        pdf.set_y(pdf.get_y() + 3)
+
+        pdf.set_font(font, "", 8.6)
+        pdf.set_text_color(*theme_info["text"])
+        contacts = [p.strip() for p in header.get("contact", "").split("|") if p.strip()]
+        for c in contacts:
+            pdf.set_x(10)
+            pdf.multi_cell(sb_w - 18, 4.4, c, align="L")
+
+        sb_y = pdf.get_y() + 4
+        for sec in sb_secs:
+            pdf.set_xy(10, sb_y)
+            pdf.set_font(font, "B", 10)
+            pdf.set_text_color(*theme_info["primary"])
+            pdf.cell(sb_w - 18, 5.5, sec["title"].upper(), new_x="LMARGIN", new_y="NEXT")
+            pdf.set_draw_color(*theme_info["primary"])
+            pdf.line(10, pdf.get_y() + 1, sb_w - 8, pdf.get_y() + 1)
+            pdf.set_y(pdf.get_y() + 3)
+
+            pdf.set_font(font, "", 8.6)
+            pdf.set_text_color(*theme_info["text"])
+            for ln in sec["body"]:
+                pdf.set_x(10)
+                clean_ln = ln.lstrip("-*• \t")
+                pdf.multi_cell(sb_w - 18, 4.4, clean_ln, markdown=True, align="L")
+            sb_y = pdf.get_y() + 4
+
+        # Right Main Sections
+        for sec in main_secs:
             y = pdf.get_y()
+            if sec["title"]:
+                pdf.set_fill_color(*theme_info["primary"])
+                pdf.rect(main_x, y + 0.6, 3, 5, style="F")
+                pdf.set_xy(main_x + 5, y)
+                pdf.set_font(font, "B", 10.5)
+                pdf.set_text_color(*theme_info["primary"])
+                pdf.cell(main_w - 5, 5.5, sec["title"].upper(), new_x="LMARGIN", new_y="NEXT")
+                pdf.set_draw_color(*theme_info["line"])
+                pdf.line(main_x + 5, y + 6.2, 210 - 14, y + 6.2)
+                pdf.set_y(y + 7.5)
 
-    def pack(secs, col_w, top, bottom):
-        """Split sections into pages: returns [[(y, section), ...], ...]."""
-        pages, current, y = [], [], top
-        for sec in secs:
-            h = measure(sec, col_w)
-            if current and y + h > bottom:
-                pages.append(current)
-                current, y = [], MARGIN
-            current.append((y, sec))
-            y += h
-        if current:
-            pages.append(current)
-        return pages or [[]]
+            pdf.set_text_color(*theme_info["text"])
+            pdf.set_font(font, "", 9.2)
+            for ln in sec["body"]:
+                y_ln = pdf.get_y()
+                if ln.startswith("### "):
+                    sub = ln[4:].strip()
+                    pdf.set_xy(main_x, y_ln + 1)
+                    pdf.set_font(font, "B", 9.6)
+                    pdf.cell(main_w, 5.2, sub, new_x="LMARGIN", new_y="NEXT")
+                    pdf.set_font(font, "", 9.2)
+                elif ln.startswith("- ") or ln.startswith("* ") or ln.startswith("• "):
+                    content = re.sub(r"^[\-*•]\s*", "", ln)
+                    pdf.set_fill_color(*theme_info["primary"])
+                    pdf.circle(main_x + 2, y_ln + 2.4, 0.7, style="F")
+                    pdf.set_xy(main_x + 5, y_ln)
+                    pdf.multi_cell(main_w - 5, 4.7, content, markdown=True, align="L")
+                else:
+                    pdf.set_xy(main_x, y_ln)
+                    pdf.multi_cell(main_w, 4.7, ln, markdown=True, align="L")
+            pdf.set_y(pdf.get_y() + 4)
+    else:
+        # Modern Clean (Executive Full-Width Single-Column)
+        MARGIN = 16
+        col_w = 210 - 2 * MARGIN
 
-    TOP, BOTTOM = band_bottom + 7, 297 - MARGIN
-    left_pages = pack(left_secs, left_w, TOP, BOTTOM) if left_secs else []
-    right_pages = pack(right_secs, right_w, TOP, BOTTOM)
-    for page in range(max(len(left_pages), len(right_pages))):
-        if page:
-            pdf.add_page()
-        if page < len(right_pages):
-            for y, sec in right_pages[page]:
-                draw(sec, MARGIN + left_w + (GAP if left_secs else 0), y, right_w)
-        if page < len(left_pages):
-            for y, sec in left_pages[page]:
-                draw(sec, MARGIN, y, left_w)
+        # Top accent stripe
+        pdf.set_fill_color(*theme_info["primary"])
+        pdf.rect(0, 0, 210, 3.5, style="F")
+
+        # Centered Executive Header
+        pdf.set_y(10)
+        pdf.set_font(font, "B", 22)
+        pdf.set_text_color(*theme_info["text"])
+        pdf.cell(0, 8.5, header.get("name", "Candidate Name"), align="C", new_x="LMARGIN", new_y="NEXT")
+
+        if header.get("title"):
+            pdf.set_font(font, "B", 11)
+            pdf.set_text_color(*theme_info["primary"])
+            pdf.cell(0, 5.5, header["title"].upper(), align="C", new_x="LMARGIN", new_y="NEXT")
+
+        if header.get("contact"):
+            pdf.set_font(font, "", 9.2)
+            pdf.set_text_color(*theme_info["muted"])
+            pdf.cell(0, 5, header["contact"], align="C", new_x="LMARGIN", new_y="NEXT")
+
+        pdf.set_draw_color(*theme_info["line"])
+        pdf.line(MARGIN, pdf.get_y() + 2, 210 - MARGIN, pdf.get_y() + 2)
+        pdf.set_y(pdf.get_y() + 5)
+
+        total_lines = sum(len(s["body"]) for s in sections)
+        LH = 5.2 if total_lines < 32 else 4.8
+        sec_gap = 4.2 if total_lines < 32 else 2.6
+
+        for sec in sections:
+            y = pdf.get_y()
+            if y > 275:
+                pdf.add_page()
+                pdf.set_fill_color(*theme_info["primary"])
+                pdf.rect(0, 0, 210, 3.5, style="F")
+                pdf.set_y(14)
+                y = 14
+
+            if sec["title"]:
+                pdf.set_fill_color(*theme_info["primary"])
+                pdf.rect(MARGIN, y + 0.6, 3, 5, style="F")
+                pdf.set_xy(MARGIN + 5, y)
+                pdf.set_font(font, "B", 10.5)
+                pdf.set_text_color(*theme_info["primary"])
+                pdf.cell(col_w - 5, 5.5, sec["title"].upper(), new_x="LMARGIN", new_y="NEXT")
+                pdf.set_draw_color(*theme_info["line"])
+                pdf.line(MARGIN + 5, y + 6.2, 210 - MARGIN, y + 6.2)
+                pdf.set_y(y + 7.5)
+
+            pdf.set_text_color(*theme_info["text"])
+            pdf.set_font(font, "", 9.5)
+            for ln in sec["body"]:
+                y_ln = pdf.get_y()
+                if y_ln > 280:
+                    pdf.add_page()
+                    pdf.set_fill_color(*theme_info["primary"])
+                    pdf.rect(0, 0, 210, 3.5, style="F")
+                    pdf.set_y(14)
+                    y_ln = 14
+
+                if ln.startswith("### "):
+                    sub = ln[4:].strip()
+                    pdf.set_xy(MARGIN, y_ln + 1)
+                    pdf.set_font(font, "B", 9.8)
+                    pdf.cell(col_w, LH + 0.5, sub, new_x="LMARGIN", new_y="NEXT")
+                    pdf.set_font(font, "", 9.5)
+                elif ln.startswith("- ") or ln.startswith("* ") or ln.startswith("• "):
+                    content = re.sub(r"^[\-*•]\s*", "", ln)
+                    pdf.set_fill_color(*theme_info["primary"])
+                    pdf.circle(MARGIN + 2, y_ln + 2.5, 0.7, style="F")
+                    pdf.set_xy(MARGIN + 5, y_ln)
+                    pdf.multi_cell(col_w - 5, LH, content, markdown=True, align="L")
+                else:
+                    pdf.set_xy(MARGIN, y_ln)
+                    pdf.multi_cell(col_w, LH, ln, markdown=True, align="L")
+            pdf.set_y(pdf.get_y() + sec_gap)
+
     return bytes(pdf.output())
 
 # ---- Free AI voice (Microsoft edge-tts, no key needed) ----
@@ -1278,76 +1366,83 @@ elif page == "Resume Maker":
         st.markdown("**About you**")
         col1, col2 = st.columns(2)
         with col1:
-            name = st.text_input("Your full name")
-            job_title = st.text_input("What job do you want? (example: Web Developer)")
+            name = st.text_input("Your full name", placeholder="example: Farooq Khan")
+            job_title = st.text_input("What job do you want?", placeholder="example: AI & Python Developer | Data Scientist")
         with col2:
-            email = st.text_input("Email ID")
-            phone = st.text_input("Phone number")
-        address = st.text_input("Address",
-                                placeholder="example: House 12, MG Road, Mumbai")
+            email = st.text_input("Email ID", placeholder="example: farooqkhan29889@gmail.com")
+            phone = st.text_input("Phone number", placeholder="example: +91 98765 43210")
+        col_l1, col_l2 = st.columns(2)
+        with col_l1:
+            address = st.text_input("City, State / Country", placeholder="example: Bhopal, MP, India")
+        with col_l2:
+            links = st.text_input("LinkedIn / GitHub / Portfolio Link", placeholder="example: github.com/farooqkhan29889-svg")
+
+        st.markdown("**Technical Skills**")
+        skills = st.text_area("Skills (separate with commas)",
+                              placeholder="example: Python, AI Agents, Machine Learning, Data Analytics, Pandas, SQL, Streamlit, Git")
+
+        st.markdown("**Work experience**")
+        experience = st.text_area("Work experience & duties",
+                                  placeholder="example: 1 year as Python Developer building AI workflows, data analytics pipelines, and backend APIs")
+
+        st.markdown("**Key Projects (optional - AI will generate impressive projects if blank)**")
+        projects = st.text_area("Projects",
+                                placeholder="example: Built an AI Market Platform in Streamlit with speech-to-text and vision analysis; Automated data analytics reporting engine")
 
         st.markdown("**Education**")
         education = st.text_area("Education",
-                                 placeholder="example: B.A. English, City College, 2020")
+                                 placeholder="example: Bachelor of Computer Applications (BCA) - Barkatullah University, 2023")
 
-        st.markdown("**Skills**")
-        skills = st.text_area("Skills (separate with commas)",
-                              placeholder="example: Python, Microsoft Excel, English, teamwork")
-
-        st.markdown("**Work experience**")
-        experience = st.text_area("Work experience",
-                                  placeholder="example: Cashier at FreshMart, 2022-2024")
-
-        st.markdown("**Personal details**")
-        col3, col4 = st.columns(2)
-        with col3:
-            father_name = st.text_input("Father's name")
-            dob = st.text_input("Date of birth", placeholder="example: 15 August 2002")
-        with col4:
-            gender = st.selectbox("Gender", ["Male", "Female"])
-            marital = st.selectbox("Marital status", ["Single", "Married"])
-        strong_points = st.text_area("Strong points",
-                                     placeholder="example: hardworking, quick learner, honest")
+        with st.expander("📌 Traditional Bio-data Details (Optional — leave empty for modern tech resumes)"):
+            col3, col4 = st.columns(2)
+            with col3:
+                father_name = st.text_input("Father's name (optional)")
+                dob = st.text_input("Date of birth (optional)", placeholder="example: 05 July 2000")
+            with col4:
+                gender = st.selectbox("Gender (optional)", ["Not specified", "Male", "Female"])
+                marital = st.selectbox("Marital status (optional)", ["Not specified", "Single", "Married"])
 
         submitted = st.form_submit_button("Write my resume", type="primary")
 
     # The chat box: people type what they want built into their resume
-    change = st.chat_input("Want a change? Type it here (example: add a Projects section)")
+    change = st.chat_input("Want a change? Type it here (example: add more metrics to my Python experience)")
 
     if submitted:
         if not name.strip():
             st.warning("Type your name first!")
         else:
-            with st.spinner("AI is writing your resume... please wait"):
-                # f-string = put a variable inside text with { }
-                # The "prompt trick": tell the AI its job + give it rules, and it writes much better
+            with st.spinner("AI is crafting your executive-grade resume... please wait"):
+                contact_parts = [p.strip() for p in (email, phone, address, links) if p and p.strip()]
                 instructions = (
-                    f"You are a professional resume writer. Write a clean, professional "
-                    f"resume for this person.\n\n"
-                    f"Name: {name}\n"
-                    f"Job they want: {job_title}\n"
-                    f"Email: {email}\n"
-                    f"Phone: {phone}\n"
-                    f"Address: {address}\n"
-                    f"Education: {education}\n"
-                    f"Skills: {skills}\n"
-                    f"Experience: {experience}\n"
-                    f"Father's name: {father_name}\n"
-                    f"Date of birth: {dob}\n"
-                    f"Gender: {gender}\n"
-                    f"Marital status: {marital}\n"
-                    f"Strong points: {strong_points}\n\n"
-                    f"Rules:\n"
-                    f"1. Fix all spelling and grammar mistakes, but keep the facts the same.\n"
-                    f"2. Use '## Section Name' for every heading and '-' for every bullet point.\n"
-                    f"3. Make it impressive and professional.\n"
-                    f"4. Keep it under one page if possible.\n"
-                    f"5. Write the resume text only, no extra comments.\n"
-                    f"6. NEVER invent company names, dates, numbers or facts. If a detail is "
-                    f"missing, leave that line or section OUT completely - never write "
-                    f"[brackets], placeholders like [Year], or notes to the reader.\n"
-                    f"7. End the resume with a '## Personal Details' section containing "
-                    f"father's name, date of birth, gender, marital status and strong points."
+                    f"You are a top-tier executive resume writer and Silicon Valley technical recruiter.\n"
+                    f"Write an impressive, modern, highly competitive professional resume for this candidate.\n\n"
+                    f"Candidate Profile:\n"
+                    f"- Full Name: {name}\n"
+                    f"- Target Job Role: {job_title}\n"
+                    f"- Email: {email}\n"
+                    f"- Phone: {phone}\n"
+                    f"- Location: {address}\n"
+                    f"- Links: {links}\n"
+                    f"- Education: {education}\n"
+                    f"- Technical Skills: {skills}\n"
+                    f"- Experience: {experience}\n"
+                    f"- Projects: {projects}\n"
+                    f"{f'- Personal Details: Father: {father_name}, DOB: {dob}, Gender: {gender}, Status: {marital}' if (father_name.strip() or dob.strip()) else ''}\n\n"
+                    f"Strict Resume Writing Guidelines:\n"
+                    f"1. Structure using clean markdown:\n"
+                    f"   - '## Professional Summary': A 3-4 sentence powerful summary emphasizing expertise, capabilities, and business impact.\n"
+                    f"   - '## Technical Skills': Categorize skills into 3-4 clean grouped bullets with bold category headers (e.g., - **Programming Languages:** ..., - **Artificial Intelligence & LLMs:** ..., - **Data Science & Analytics:** ..., - **Tools & Platforms:** ...).\n"
+                    f"   - '## Professional Experience':\n"
+                    f"     Use '### Role Title | Company / Industry (Duration)' for each position.\n"
+                    f"     Generate 3 to 4 substantial, achievement-oriented bullet points starting with strong action verbs (Architected, Developed, Engineered, Optimized, Automated). Emphasize real workflows, technologies used, and quantifiable benefits (e.g. reduced processing time by 40%, improved pipeline efficiency).\n"
+                    f"   - '## Key Projects':\n"
+                    f"     Include 2 standout technical projects (use candidate projects if provided, or design realistic high-impact projects matching their exact tech stack).\n"
+                    f"     Format as '### Project Title | *Key Technologies*'\n"
+                    f"     Provide 2 detailed bullets highlighting technical architecture, features implemented, and results.\n"
+                    f"   - '## Education': Degree, university/institution, graduation year.\n"
+                    f"   {f'- ## Personal Details: Include only if specified above.' if (father_name.strip() or dob.strip()) else 'DO NOT include Father name, DOB, gender, or marital status.'}\n"
+                    f"2. Ensure the resume content is rich and comprehensive enough to elegantly fill a full 1-page resume without sparse or blank areas.\n"
+                    f"3. NEVER use brackets like [Year] or [Company Name]. Output ONLY the final resume markdown without conversational preamble."
                 )
                 draft = ask_text_ai(instructions)
                 if not draft:
@@ -1358,7 +1453,7 @@ elif page == "Resume Maker":
                     st.session_state["resume_header"] = {
                         "name": name.strip(), "title": job_title.strip(),
                         "email": email.strip(), "phone": phone.strip(),
-                        "contact": "   |   ".join(p.strip() for p in (email, phone, address) if p and p.strip()),
+                        "contact": "   |   ".join(contact_parts),
                     }
 
     if change:
@@ -1371,7 +1466,7 @@ elif page == "Resume Maker":
                     f"My request: {change}\n\n"
                     f"Rules:\n"
                     f"1. Do the change I asked for. Keep the other facts as they are.\n"
-                    f"2. Keep the same format: '## Section Name' headings and '-' bullets.\n"
+                    f"2. Keep the same format: '## Section Name' headings, '### Subheading' for roles/projects, and '-' bullets.\n"
                     f"3. Fix spelling and grammar.\n"
                     f"4. NEVER invent facts. If a detail is missing, leave it out - "
                     f"never write [brackets] or notes to the reader.\n"
@@ -1396,13 +1491,18 @@ elif page == "Resume Maker":
             safe_name = (header.get("name") or "My_Resume").replace(" ", "_")
 
             st.markdown('<div class="sec-label">🎨 Styling & Download</div>', unsafe_allow_html=True)
-            col_th, col_spacer = st.columns([2, 1])
-            with col_th:
-                chosen_theme = st.selectbox("Choose visual theme for PDF:",
+            col_th1, col_th2 = st.columns(2)
+            with col_th1:
+                chosen_theme = st.selectbox("Choose visual color theme:",
                                             list(RESUME_THEMES.keys()),
-                                            index=0, key="res_pdf_theme")
+                                            index=1, key="res_pdf_theme") # default Emerald
+            with col_th2:
+                chosen_layout = st.selectbox("Choose layout template:",
+                                             ["Modern Clean (Single Column)", "Modern Sidebar (Dual Tone)"],
+                                             index=0, key="res_pdf_layout")
 
-            pdf_bytes = make_resume_pdf(st.session_state["resume_text"], header, theme=chosen_theme)
+            pdf_bytes = make_resume_pdf(st.session_state["resume_text"], header,
+                                        theme=chosen_theme, layout=chosen_layout)
 
             col_a, col_b = st.columns(2)
             with col_a:
