@@ -1,7 +1,6 @@
+streamlit
 requests
-Pillow
 fpdf2
-edge-tts
-imageio-ffmpeg
-moviepy
-qrcode
+Pillow
+pypdf
+python-docx
