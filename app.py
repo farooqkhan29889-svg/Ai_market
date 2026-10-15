@@ -20,6 +20,12 @@ try:
 except ImportError:
     docx = None
 
+# Optional PDF-to-image renderer for real template previews
+try:
+    import pypdfium2 as pdfium
+except ImportError:
+    pdfium = None
+
 # ---- 0. Load Environment Variables (.env locally, st.secrets on Cloud) ----
 def load_env():
     env_path = os.path.join(os.path.dirname(__file__), ".env")
@@ -1051,12 +1057,70 @@ for k, v in defaults.items():
     if k not in st.session_state:
         st.session_state[k] = v
 
+# ---- Sample resume used only to render the real template previews ----
+SAMPLE_HEADER = {
+    "name": "Alex Morgan",
+    "title": "Senior Software Engineer",
+    "email": "alex.morgan@email.com",
+    "phone": "+1 (555) 123-4567",
+    "contact": "San Francisco, CA   |   alex.morgan@email.com   |   +1 (555) 123-4567   |   linkedin.com/in/alexmorgan",
+}
+
+SAMPLE_RESUME_TEXT = """## Summary
+Results-driven Senior Software Engineer with 8+ years building scalable web platforms and data-driven services. Led cross-functional teams to ship products used by millions.
+
+## Experience
+### Senior Software Engineer - TechNova Inc. (2021 - Present)
+- Architected a microservices platform that cut deploy time by 60% and improved uptime to 99.98%.
+- Mentored a team of 5 engineers and established code-review and testing standards.
+- Reduced cloud infrastructure cost by 35% through autoscaling and right-sizing.
+### Software Engineer - BrightApps (2017 - 2021)
+- Built REST APIs and real-time dashboards serving 2M+ monthly active users.
+- Automated CI/CD pipelines, shrinking release cycles from weekly to daily.
+
+## Skills
+- Languages: Python, JavaScript, TypeScript, Go, SQL
+- Frameworks: React, Node.js, Django, FastAPI
+- Cloud & Tools: AWS, Docker, Kubernetes, PostgreSQL, Redis, Git
+
+## Projects
+- Open-source analytics toolkit with 3,000+ GitHub stars.
+- Real-time recommendation engine boosting engagement by 22%.
+
+## Education
+### B.Tech, Computer Science - State University (2013 - 2017)
+Graduated with Honors.
+"""
+
+
+def render_template_preview(tmpl):
+    """Render a real one-page PDF of the sample resume in this template's theme/layout,
+    then rasterize page 1 to a PNG. Falls back to the drawn mock thumbnail on any failure."""
+    try:
+        if pdfium is None:
+            raise RuntimeError("pypdfium2 not installed")
+        pdf_bytes = make_resume_pdf(
+            SAMPLE_RESUME_TEXT, SAMPLE_HEADER,
+            theme=tmpl.get("theme"), layout=tmpl.get("layout"), photo_bytes=None,
+        )
+        doc = pdfium.PdfDocument(pdf_bytes)
+        pil = doc[0].render(scale=1.4).to_pil().convert("RGB")
+        target_w = 300
+        target_h = int(pil.height * (target_w / pil.width))
+        pil = pil.resize((target_w, target_h), Image.LANCZOS)
+        buf = io.BytesIO()
+        pil.save(buf, format="PNG")
+        return buf.getvalue()
+    except Exception:
+        return generate_template_thumbnail(tmpl)
+
+
 # Pre-generate thumbnails (cached)
-@st.cache_data
+@st.cache_data(show_spinner="Rendering template previews...")
 def get_all_thumbnails():
     thumbs = {}
     for tmpl in TEMPLATES:
-        thumbs[tmpl["id"]] = generate_template_thumbnail(tmpl)
+        thumbs[tmpl["id"]] = render_template_preview(tmpl)
     return thumbs
 
 THUMBNAILS = get_all_thumbnails()
