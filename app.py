@@ -508,7 +508,7 @@ TEMPLATES = [
         "desc": "Vibrant purple dual-column layout for designers, artists, and creative professionals.",
         "theme": "Royal Purple",
         "layout": "Modern Sidebar (Dual Tone)",
-        "accent_color": "#7c3aed",
+        "accent_color": "#4f46e5",
         "accent_rgb": (124, 58, 237),
         "accent2_rgb": (167, 139, 250),
         "likes": 19870,
@@ -866,6 +866,13 @@ st.markdown("""
     html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
     .block-container { padding-top: 1rem; }
 
+    /* ── Page background: soft canvas so white cards & preview pop ── */
+    [data-testid="stAppViewContainer"] { background: #f4f5fc; }
+    [data-testid="stHeader"] { background: transparent; }
+    [data-testid="stMain"] { background: transparent; }
+    [data-testid="stAppViewContainer"] > .main,
+    [data-testid="stMainBlockContainer"] { background: transparent; }
+
     /* ── Sidebar ── */
     section[data-testid="stSidebar"] {
         background: #ffffff;
@@ -877,7 +884,7 @@ st.markdown("""
     section[data-testid="stSidebar"] label { color: #374151; }
 
     .sidebar-brand {
-        font-size: 24px; font-weight: 800; color: #1e40af;
+        font-size: 24px; font-weight: 800; color: #4338ca;
         padding: 8px 0 2px; letter-spacing: -0.5px;
     }
     .sidebar-tagline {
@@ -893,10 +900,10 @@ st.markdown("""
 
     /* ── Hero Banner ── */
     .hero-banner {
-        background: linear-gradient(135deg, #1e3a5f 0%, #1e40af 40%, #3b82f6 100%);
+        background: linear-gradient(135deg, #312e81 0%, #4338ca 40%, #6366f1 100%);
         border-radius: 16px; padding: 32px 40px 26px;
         margin-bottom: 28px; color: #ffffff;
-        box-shadow: 0 8px 30px rgba(30, 64, 175, 0.2);
+        box-shadow: 0 8px 30px rgba(67, 56, 202, 0.2);
     }
     .hero-banner h1 {
         font-size: 36px; font-weight: 900; margin: 0 0 6px;
@@ -930,8 +937,8 @@ st.markdown("""
     .filter-tab:first-child { border-radius: 8px 0 0 8px; }
     .filter-tab:last-child { border-radius: 0 8px 8px 0; }
     .filter-tab.active {
-        background: #1e40af; color: #ffffff;
-        border-color: #1e40af;
+        background: #4338ca; color: #ffffff;
+        border-color: #4338ca;
     }
 
     /* ── Template Cards ── */
@@ -945,7 +952,7 @@ st.markdown("""
     .tmpl-card:hover {
         transform: translateY(-4px);
         box-shadow: 0 12px 28px rgba(0,0,0,0.12);
-        border-color: #3b82f6;
+        border-color: #6366f1;
     }
     .tmpl-img-wrap {
         position: relative; background: #f9fafb;
@@ -958,13 +965,13 @@ st.markdown("""
     }
     .tmpl-overlay {
         position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-        background: rgba(30, 64, 175, 0.7);
+        background: rgba(67, 56, 202, 0.7);
         display: flex; align-items: center; justify-content: center;
         opacity: 0; transition: opacity 0.25s; border-radius: 0;
     }
     .tmpl-card:hover .tmpl-overlay { opacity: 1; }
     .tmpl-overlay-btn {
-        background: #ffffff; color: #1e40af;
+        background: #ffffff; color: #4338ca;
         padding: 10px 28px; border-radius: 8px;
         font-weight: 700; font-size: 14px;
         box-shadow: 0 4px 12px rgba(0,0,0,0.15);
@@ -995,7 +1002,7 @@ st.markdown("""
     /* ── Buttons ── */
     div[data-testid="stButton"] button[kind="primary"],
     div[data-testid="stDownloadButton"] button[kind="primary"] {
-        background: linear-gradient(135deg, #1e40af, #3b82f6);
+        background: linear-gradient(135deg, #4338ca, #6366f1);
         color: #ffffff; border: none; border-radius: 8px;
         font-weight: 700; padding: 0.5rem 1.2rem;
         transition: transform 0.15s, box-shadow 0.15s;
@@ -1003,13 +1010,13 @@ st.markdown("""
     div[data-testid="stButton"] button[kind="primary"]:hover,
     div[data-testid="stDownloadButton"] button[kind="primary"]:hover {
         transform: translateY(-2px);
-        box-shadow: 0 6px 16px rgba(59, 130, 246, 0.35);
+        box-shadow: 0 6px 16px rgba(99, 102, 241, 0.35);
         color: #ffffff;
     }
 
     /* ── Builder page ── */
     .builder-header {
-        background: linear-gradient(135deg, #1e3a5f, #1e40af);
+        background: linear-gradient(135deg, #312e81, #4338ca);
         border-radius: 12px; padding: 24px 30px; color: #fff;
         margin-bottom: 20px;
     }
@@ -1018,17 +1025,147 @@ st.markdown("""
 
     /* Chat Input */
     div[data-testid="stChatInput"] {
-        border: 2px solid #93c5fd; border-radius: 12px;
+        border: 2px solid #a5b4fc; border-radius: 12px;
     }
 
     /* Hide Streamlit footer */
     footer { visibility: hidden; }
+
+    /* ── AI Tools Page ── */
+    .ai-tools-banner {
+        background: linear-gradient(135deg, #f8f0ff 0%, #e0e7ff 50%, #e0e7ff 100%);
+        border: 1px solid #c7d2fe;
+        border-radius: 14px; padding: 18px 28px;
+        margin-bottom: 28px;
+        display: flex; align-items: center; justify-content: space-between;
+        flex-wrap: wrap; gap: 12px;
+    }
+    .ai-tools-banner .banner-text {
+        font-size: 14.5px; color: #312e81;
+        font-weight: 500;
+    }
+    .ai-tools-banner .upgrade-btn {
+        background: linear-gradient(135deg, #ef4444, #dc2626);
+        color: #fff; border: none; border-radius: 24px;
+        padding: 10px 28px; font-weight: 700; font-size: 14px;
+        cursor: pointer; text-decoration: none;
+        box-shadow: 0 4px 14px rgba(239, 68, 68, 0.3);
+        transition: transform 0.15s, box-shadow 0.15s;
+    }
+    .ai-tools-banner .upgrade-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4);
+    }
+    .ai-tools-heading {
+        font-size: 28px; font-weight: 800; color: #111827;
+        margin: 0 0 24px; letter-spacing: -0.4px;
+    }
+    .ai-tool-card {
+        background: #ffffff; border: 1.5px solid #e5e7eb;
+        border-radius: 14px; padding: 22px 24px;
+        margin-bottom: 14px;
+        display: flex; align-items: center;
+        justify-content: space-between;
+        transition: all 0.25s ease;
+        cursor: default;
+        gap: 16px;
+    }
+    .ai-tool-card:hover {
+        border-color: #818cf8;
+        box-shadow: 0 6px 24px rgba(99, 102, 241, 0.1);
+        transform: translateY(-2px);
+    }
+    .ai-tool-left {
+        display: flex; align-items: center; gap: 16px;
+        flex: 1;
+    }
+    .ai-tool-icon {
+        width: 44px; height: 44px;
+        border-radius: 12px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 22px; flex-shrink: 0;
+    }
+    .ai-tool-icon.purple { background: #e0e7ff; }
+    .ai-tool-icon.blue { background: #e0e7ff; }
+    .ai-tool-icon.green { background: #d1fae5; }
+    .ai-tool-icon.orange { background: #ffedd5; }
+    .ai-tool-icon.pink { background: #fce7f3; }
+    .ai-tool-icon.teal { background: #ccfbf1; }
+    .ai-tool-icon.red { background: #fee2e2; }
+    .ai-tool-icon.indigo { background: #e0e7ff; }
+    .ai-tool-icon.yellow { background: #fef9c3; }
+    .ai-tool-info h4 {
+        font-size: 15.5px; font-weight: 700; color: #111827;
+        margin: 0 0 3px; display: flex; align-items: center; gap: 8px;
+    }
+    .ai-tool-info p {
+        font-size: 13px; color: #6b7280;
+        margin: 0; line-height: 1.45;
+    }
+    .new-badge {
+        background: linear-gradient(135deg, #6366f1, #4338ca);
+        color: #fff; font-size: 10px; font-weight: 700;
+        padding: 2px 8px; border-radius: 10px;
+        text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .hot-badge {
+        background: linear-gradient(135deg, #f97316, #ea580c);
+        color: #fff; font-size: 10px; font-weight: 700;
+        padding: 2px 8px; border-radius: 10px;
+        text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .pro-badge {
+        background: linear-gradient(135deg, #eab308, #ca8a04);
+        color: #fff; font-size: 10px; font-weight: 700;
+        padding: 2px 8px; border-radius: 10px;
+        text-transform: uppercase; letter-spacing: 0.5px;
+    }
+
+    /* AI Tool Result Box */
+    .ai-result-box {
+        background: #f8fafc; border: 1px solid #e2e8f0;
+        border-radius: 12px; padding: 20px 24px;
+        margin: 12px 0 20px; line-height: 1.7;
+        font-size: 14px; color: #1e293b;
+    }
+    .ai-result-box h3, .ai-result-box h4 {
+        color: #4338ca; margin-top: 12px;
+    }
+
+    /* Sidebar AI Tools nav button */
+    .sidebar-ai-btn {
+        background: linear-gradient(135deg, #6366f1, #4338ca);
+        color: #ffffff !important; border: none; border-radius: 10px;
+        padding: 10px 16px; font-weight: 700; font-size: 14px;
+        width: 100%; text-align: center; cursor: pointer;
+        margin: 8px 0; display: block;
+        box-shadow: 0 4px 14px rgba(67, 56, 202, 0.25);
+        transition: transform 0.15s, box-shadow 0.15s;
+        text-decoration: none;
+    }
+    .sidebar-ai-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(67, 56, 202, 0.35);
+    }
+
+    /* Tool active panel */
+    .tool-panel-header {
+        background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
+        border-radius: 12px; padding: 20px 24px;
+        color: #ffffff; margin-bottom: 20px;
+    }
+    .tool-panel-header h3 {
+        margin: 0 0 4px; font-weight: 800; font-size: 20px; color: #ffffff;
+    }
+    .tool-panel-header p {
+        margin: 0; opacity: 0.9; font-size: 13.5px; color: #c7d2fe;
+    }
 </style>
 """, unsafe_allow_html=True)
 
 # ---- 8. Session State Initialization ----
 defaults = {
-    "page": "gallery",  # "gallery" or "builder"
+    "page": "gallery",  # "gallery", "builder", or "ai_tools"
     "resume_text": "",
     "resume_log": [],
     "resume_header": {},
@@ -1052,6 +1189,15 @@ defaults = {
     "input_dob": "",
     "input_gender": "Not specified",
     "input_marital": "Not specified",
+    # AI Tools state
+    "ai_tool_active": None,
+    "ai_tool_result": None,
+    "translate_lang": "Hindi",
+    "cover_letter_jd": "",
+    "interview_role": "",
+    "interview_questions": None,
+    "linkedin_result": None,
+    "skill_gap_jd": "",
 }
 for k, v in defaults.items():
     if k not in st.session_state:
@@ -1125,6 +1271,30 @@ def get_all_thumbnails():
 
 THUMBNAILS = get_all_thumbnails()
 
+# ---- Live resume preview (right pane on the AI Tools page) ----
+def render_live_resume_preview():
+    st.markdown("### 📄 Live Preview")
+    rt = (st.session_state.get("resume_text") or "").strip()
+    if not rt:
+        st.info("Build a resume first — your live PDF preview will appear here while you use the AI tools.")
+        return
+    header = st.session_state.get("resume_header") or {}
+    tmpl_id = st.session_state.get("chosen_template_id")
+    tmpl = next((t for t in TEMPLATES if t["id"] == tmpl_id), TEMPLATES[0])
+    theme = st.session_state.get("live_theme_select") or tmpl.get("theme", "Modern Navy")
+    layout = st.session_state.get("live_layout_select") or tmpl.get("layout", "Modern Clean (Single Column)")
+    photo = st.session_state.get("photo_bytes") if st.session_state.get("include_photo", True) else None
+    if pdfium is None:
+        st.info("Install pypdfium2 to see the live visual preview.")
+        return
+    try:
+        pdf_bytes = make_resume_pdf(rt, header, theme=theme, layout=layout, photo_bytes=photo)
+        doc = pdfium.PdfDocument(pdf_bytes)
+        for i in range(len(doc)):
+            st.image(doc[i].render(scale=1.5).to_pil(), use_container_width=True)
+    except Exception as e:
+        st.error(f"Could not render preview: {e}")
+
 # ============================================================
 # ---- 9. SIDEBAR: Categories & Branding ----
 # ============================================================
@@ -1132,8 +1302,15 @@ with st.sidebar:
     st.markdown('<div class="sidebar-brand">📄 ResumeStudio</div>', unsafe_allow_html=True)
     st.markdown('<div class="sidebar-tagline">Professional Resume Templates<br>Free Builder • ATS-Optimized • PDF Export</div>', unsafe_allow_html=True)
 
-    # Back to gallery button (when in builder)
-    if st.session_state["page"] == "builder":
+    # AI Tools navigation
+    if st.button("✨ AI Tools", key="nav_ai_tools", use_container_width=True, type="primary"):
+        st.session_state["page"] = "ai_tools"
+        st.session_state["ai_tool_active"] = None
+        st.session_state["ai_tool_result"] = None
+        st.rerun()
+
+    # Back to gallery button (when in builder or ai_tools)
+    if st.session_state["page"] in ("builder", "ai_tools"):
         if st.button("← Back to Templates", use_container_width=True):
             st.session_state["page"] = "gallery"
             st.rerun()
@@ -1331,7 +1508,7 @@ elif st.session_state["page"] == "builder":
                 st.rerun()
         else:
             st.markdown("""
-            <div style="border: 2px dashed #93c5fd; border-radius: 12px; padding: 24px; text-align: center; color: #3b82f6;">
+            <div style="border: 2px dashed #a5b4fc; border-radius: 12px; padding: 24px; text-align: center; color: #6366f1;">
                 📸 <b>No Photo</b><br><small>Upload below</small>
             </div>
             """, unsafe_allow_html=True)
@@ -1629,3 +1806,652 @@ elif st.session_state["page"] == "builder":
                             st.error(BUSY_MSG)
     else:
         st.info("👆 Fill your details above and press **Build My Resume** to generate your professional PDF.")
+
+# ============================================================
+# ---- 12. PAGE: AI TOOLS ----
+# ============================================================
+elif st.session_state["page"] == "ai_tools":
+
+    # AI Tools definitions
+    AI_TOOLS = [
+        {
+            "id": "translate",
+            "icon": "🌐",
+            "icon_class": "purple",
+            "name": "Translate Resume",
+            "badge": "new",
+            "desc": "Create a translated version of your resume in the language of your choice.",
+            "btn_text": "Translate now",
+        },
+        {
+            "id": "improve_writing",
+            "icon": "✏️",
+            "icon_class": "pink",
+            "name": "Improve Writing",
+            "badge": "new",
+            "desc": "Strengthen your resume with clearer, more concise and impactful writing.",
+            "btn_text": "Improve now",
+        },
+        {
+            "id": "cover_letter",
+            "icon": "📝",
+            "icon_class": "blue",
+            "name": "Draft Cover Letter",
+            "badge": "new",
+            "desc": "Draft a tailored cover letter based on your resume and target job description.",
+            "btn_text": "Draft now",
+        },
+        {
+            "id": "summary",
+            "icon": "📋",
+            "icon_class": "green",
+            "name": "Generate Summary",
+            "badge": "new",
+            "desc": "Turn your existing resume content into a professional summary for your resume.",
+            "btn_text": "Generate now",
+        },
+        {
+            "id": "interview_prep",
+            "icon": "🎤",
+            "icon_class": "orange",
+            "name": "Interview Prep",
+            "badge": "hot",
+            "desc": "Generate tailored interview questions and best-practice answers for your target role.",
+            "btn_text": "Prepare now",
+        },
+        {
+            "id": "linkedin",
+            "icon": "💼",
+            "icon_class": "blue",
+            "name": "LinkedIn Optimizer",
+            "badge": "new",
+            "desc": "Optimize your LinkedIn headline, summary, and about section from your resume.",
+            "btn_text": "Optimize now",
+        },
+        {
+            "id": "skill_gap",
+            "icon": "📊",
+            "icon_class": "teal",
+            "name": "Skill Gap Analyzer",
+            "badge": "hot",
+            "desc": "Compare your skills against a job description and discover what you're missing.",
+            "btn_text": "Analyze now",
+        },
+        {
+            "id": "email_followup",
+            "icon": "📧",
+            "icon_class": "indigo",
+            "name": "Email Follow-Up",
+            "badge": "new",
+            "desc": "Draft a professional follow-up email after applying or interviewing.",
+            "btn_text": "Draft email",
+        },
+        {
+            "id": "tailor_resume",
+            "icon": "🎯",
+            "icon_class": "red",
+            "name": "Tailor Resume to Job",
+            "badge": "hot",
+            "desc": "Automatically customize your resume keywords and bullets for a specific job posting.",
+            "btn_text": "Tailor now",
+        },
+        {
+            "id": "grammar_check",
+            "icon": "✅",
+            "icon_class": "yellow",
+            "name": "Grammar & Style Check",
+            "badge": "new",
+            "desc": "Find and fix grammar errors, typos, and awkward phrasing in your resume.",
+            "btn_text": "Check now",
+        },
+    ]
+
+    active_tool = st.session_state.get("ai_tool_active")
+
+    # If no tool is active, show the tool listing page
+    _tools_col, _preview_col = st.columns([1.7, 1.15], gap="large")
+
+    with _preview_col:
+        render_live_resume_preview()
+
+    with _tools_col:
+        if active_tool is None:
+
+            # Pro banner
+            st.markdown("""
+            <div class="ai-tools-banner">
+                <span class="banner-text">✨ AI-powered tools to supercharge your job search — all included free!</span>
+            </div>
+            """, unsafe_allow_html=True)
+
+            # Heading
+            st.markdown('<div class="ai-tools-heading">What would you like to do?</div>', unsafe_allow_html=True)
+
+            # Check if user has a resume
+            has_resume = bool(st.session_state.get("resume_text", "").strip())
+
+            if not has_resume:
+                st.warning("⚠️ **Build your resume first!** Go to Templates → choose a template → fill in your details → Build. Then come back here to use AI tools on your resume.")
+                st.markdown("---")
+
+            # Render each tool card
+            for tool in AI_TOOLS:
+                badge_html = ""
+                if tool.get("badge") == "new":
+                    badge_html = '<span class="new-badge">New</span>'
+                elif tool.get("badge") == "hot":
+                    badge_html = '<span class="hot-badge">🔥 Hot</span>'
+                elif tool.get("badge") == "pro":
+                    badge_html = '<span class="pro-badge">Pro</span>'
+
+                st.markdown(f"""
+                <div class="ai-tool-card">
+                    <div class="ai-tool-left">
+                        <div class="ai-tool-icon {tool['icon_class']}">{tool['icon']}</div>
+                        <div class="ai-tool-info">
+                            <h4>{tool['name']} {badge_html}</h4>
+                            <p>{tool['desc']}</p>
+                        </div>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+
+                if st.button(tool["btn_text"], key=f"ai_tool_btn_{tool['id']}", disabled=not has_resume, use_container_width=False):
+                    st.session_state["ai_tool_active"] = tool["id"]
+                    st.session_state["ai_tool_result"] = None
+                    st.rerun()
+
+        # ---- Active Tool Panels ----
+        else:
+            # Back button
+            if st.button("← Back to AI Tools", key="back_to_tools"):
+                st.session_state["ai_tool_active"] = None
+                st.session_state["ai_tool_result"] = None
+                st.rerun()
+
+            resume_text = st.session_state.get("resume_text", "")
+            header = st.session_state.get("resume_header", {})
+
+            # ---- TRANSLATE RESUME ----
+            if active_tool == "translate":
+                st.markdown("""
+                <div class="tool-panel-header">
+                    <h3>🌐 Translate Resume</h3>
+                    <p>Create a professional translation of your resume in any language</p>
+                </div>
+                """, unsafe_allow_html=True)
+
+                languages = [
+                    "Hindi", "Spanish", "French", "German", "Chinese (Simplified)",
+                    "Japanese", "Korean", "Arabic", "Portuguese", "Russian",
+                    "Italian", "Dutch", "Turkish", "Bengali", "Tamil",
+                    "Telugu", "Marathi", "Gujarati", "Urdu", "Punjabi",
+                ]
+                selected_lang = st.selectbox("Select target language:", languages, key="translate_lang_select")
+
+                if st.button("🌐 Translate Now", type="primary", key="btn_do_translate"):
+                    with st.spinner(f"Translating your resume to {selected_lang}..."):
+                        prompt = (
+                            f"You are a professional resume translator. Translate the following resume "
+                            f"into {selected_lang} while maintaining professional tone, formatting (## headings, ### subheadings, - bullets), "
+                            f"and all factual details. Do NOT translate the person's name. "
+                            f"Output ONLY the translated resume.\n\n"
+                            f"Resume:\n{resume_text}"
+                        )
+                        result = ask_text_ai(prompt)
+                        if result:
+                            st.session_state["ai_tool_result"] = result
+                            st.rerun()
+                        else:
+                            st.error(BUSY_MSG)
+
+                if st.session_state.get("ai_tool_result"):
+                    st.markdown("### ✅ Translated Resume")
+                    st.markdown(st.session_state["ai_tool_result"])
+                    st.download_button(
+                        "📥 Download Translated Resume",
+                        st.session_state["ai_tool_result"].encode("utf-8"),
+                        file_name=f"Resume_Translated_{selected_lang}.txt",
+                        mime="text/plain", type="primary"
+                    )
+
+            # ---- IMPROVE WRITING ----
+            elif active_tool == "improve_writing":
+                st.markdown("""
+                <div class="tool-panel-header">
+                    <h3>✏️ Improve Writing</h3>
+                    <p>Strengthen your resume with clearer, more powerful language</p>
+                </div>
+                """, unsafe_allow_html=True)
+
+                improvement_focus = st.multiselect(
+                    "Focus areas:",
+                    ["Stronger action verbs", "Quantify achievements", "Remove filler words",
+                     "More concise bullets", "Professional tone", "Industry keywords"],
+                    default=["Stronger action verbs", "Quantify achievements", "More concise bullets"],
+                    key="improve_focus"
+                )
+
+                if st.button("✏️ Improve Now", type="primary", key="btn_do_improve"):
+                    with st.spinner("AI is enhancing your resume writing..."):
+                        focus_str = ", ".join(improvement_focus) if improvement_focus else "overall quality"
+                        prompt = (
+                            f"You are an expert resume writer. Improve the following resume focusing on: {focus_str}.\n\n"
+                            f"Guidelines:\n"
+                            f"1. Replace weak verbs with powerful action verbs (Led, Architected, Spearheaded, etc.)\n"
+                            f"2. Add realistic quantified metrics where possible\n"
+                            f"3. Remove filler words and make bullets concise\n"
+                            f"4. Keep the same structure (## headings, ### subheadings, - bullets)\n"
+                            f"5. Preserve all factual information\n"
+                            f"6. Output ONLY the improved resume\n\n"
+                            f"Resume:\n{resume_text}"
+                        )
+                        result = ask_text_ai(prompt)
+                        if result:
+                            st.session_state["ai_tool_result"] = result
+                            st.rerun()
+                        else:
+                            st.error(BUSY_MSG)
+
+                if st.session_state.get("ai_tool_result"):
+                    st.markdown("### ✅ Improved Resume")
+                    st.markdown(st.session_state["ai_tool_result"])
+
+                    col_imp1, col_imp2 = st.columns(2)
+                    with col_imp1:
+                        if st.button("✅ Apply Changes to My Resume", type="primary", key="btn_apply_improve"):
+                            st.session_state["resume_text"] = st.session_state["ai_tool_result"]
+                            st.session_state["resume_log"].append("AI Writing Improvement applied")
+                            st.success("🎉 Improved version applied to your resume!")
+                    with col_imp2:
+                        st.download_button(
+                            "📥 Download Improved Version",
+                            st.session_state["ai_tool_result"].encode("utf-8"),
+                            file_name="Resume_Improved.txt", mime="text/plain"
+                        )
+
+            # ---- DRAFT COVER LETTER ----
+            elif active_tool == "cover_letter":
+                st.markdown("""
+                <div class="tool-panel-header">
+                    <h3>📝 Draft Cover Letter</h3>
+                    <p>Generate a tailored cover letter that complements your resume</p>
+                </div>
+                """, unsafe_allow_html=True)
+
+                job_desc = st.text_area(
+                    "Paste the target job description (optional but recommended):",
+                    height=120, key="cl_job_desc",
+                    placeholder="Paste the job posting here for a highly tailored cover letter..."
+                )
+                company_name = st.text_input("Company name:", key="cl_company", placeholder="e.g. Google, Microsoft, Infosys")
+                tone = st.selectbox("Tone:", ["Professional & Confident", "Enthusiastic & Passionate", "Formal & Corporate", "Friendly & Approachable"], key="cl_tone")
+
+                if st.button("📝 Generate Cover Letter", type="primary", key="btn_do_cover"):
+                    with st.spinner("Crafting your personalized cover letter..."):
+                        name = header.get("name", "Candidate")
+                        title = header.get("title", "")
+                        prompt = (
+                            f"You are a career coach and professional cover letter writer.\n"
+                            f"Write a compelling, {tone.lower()} cover letter for {name}"
+                            f"{f', applying for {title}' if title else ''}"
+                            f"{f' at {company_name}' if company_name.strip() else ''}.\n\n"
+                            f"Base it on this resume:\n{resume_text[:4000]}\n\n"
+                            f"{f'Target Job Description:{chr(10)}{job_desc[:2000]}' if job_desc.strip() else ''}\n\n"
+                            f"Guidelines:\n"
+                            f"1. Write 3-4 paragraphs: hook, value proposition, specific achievements, closing\n"
+                            f"2. Reference specific skills and accomplishments from the resume\n"
+                            f"3. If a job description is provided, align closely with its requirements\n"
+                            f"4. Be authentic, avoid generic phrases\n"
+                            f"5. Include a professional salutation and sign-off\n"
+                            f"6. Output ONLY the cover letter text"
+                        )
+                        result = ask_text_ai(prompt)
+                        if result:
+                            st.session_state["ai_tool_result"] = result
+                            st.rerun()
+                        else:
+                            st.error(BUSY_MSG)
+
+                if st.session_state.get("ai_tool_result"):
+                    st.markdown("### ✅ Your Cover Letter")
+                    st.markdown(st.session_state["ai_tool_result"])
+                    safe_name = (header.get("name") or "Cover_Letter").replace(" ", "_")
+                    st.download_button(
+                        "📥 Download Cover Letter",
+                        st.session_state["ai_tool_result"].encode("utf-8"),
+                        file_name=f"Cover_Letter_{safe_name}.txt",
+                        mime="text/plain", type="primary"
+                    )
+
+            # ---- GENERATE SUMMARY ----
+            elif active_tool == "summary":
+                st.markdown("""
+                <div class="tool-panel-header">
+                    <h3>📋 Generate Professional Summary</h3>
+                    <p>Create a powerful executive summary from your resume content</p>
+                </div>
+                """, unsafe_allow_html=True)
+
+                summary_style = st.selectbox(
+                    "Summary style:",
+                    ["Executive Summary (3-4 sentences)", "Elevator Pitch (2 sentences)", "Detailed Profile (5-6 sentences)", "Objective Statement"],
+                    key="summary_style"
+                )
+
+                if st.button("📋 Generate Summary", type="primary", key="btn_do_summary"):
+                    with st.spinner("Crafting your professional summary..."):
+                        prompt = (
+                            f"You are an executive resume writer. Generate a {summary_style.lower()} "
+                            f"based on this resume:\n\n{resume_text[:5000]}\n\n"
+                            f"Guidelines:\n"
+                            f"1. Highlight the candidate's strongest selling points\n"
+                            f"2. Include years of experience, key technologies, and leadership qualities\n"
+                            f"3. Use powerful language — no generic phrases\n"
+                            f"4. Make it ATS-friendly with relevant keywords\n"
+                            f"5. Output ONLY the summary paragraph(s), nothing else"
+                        )
+                        result = ask_text_ai(prompt)
+                        if result:
+                            st.session_state["ai_tool_result"] = result
+                            st.rerun()
+                        else:
+                            st.error(BUSY_MSG)
+
+                if st.session_state.get("ai_tool_result"):
+                    st.markdown("### ✅ Your Professional Summary")
+                    st.markdown(f'<div class="ai-result-box">{st.session_state["ai_tool_result"]}</div>', unsafe_allow_html=True)
+                    if st.button("📋 Copy to Clipboard", key="btn_copy_summary"):
+                        st.code(st.session_state["ai_tool_result"], language=None)
+                        st.info("Select and copy the text above.")
+
+            # ---- INTERVIEW PREP ----
+            elif active_tool == "interview_prep":
+                st.markdown("""
+                <div class="tool-panel-header">
+                    <h3>🎤 Interview Preparation</h3>
+                    <p>Get tailored interview questions with expert answers for your target role</p>
+                </div>
+                """, unsafe_allow_html=True)
+
+                role_for_interview = st.text_input(
+                    "Target role for interview:",
+                    value=header.get("title", ""),
+                    key="interview_role_input",
+                    placeholder="e.g. Senior Python Developer"
+                )
+                interview_type = st.selectbox(
+                    "Interview type:",
+                    ["Technical + Behavioral Mix", "Behavioral Only", "Technical Only", "System Design", "Case Study"],
+                    key="interview_type"
+                )
+                num_questions = st.slider("Number of questions:", 5, 15, 8, key="interview_num_q")
+
+                if st.button("🎤 Generate Questions", type="primary", key="btn_do_interview"):
+                    with st.spinner("Preparing interview questions and answers..."):
+                        prompt = (
+                            f"You are a senior technical interviewer at a top tech company.\n"
+                            f"Generate {num_questions} {interview_type.lower()} interview questions for a "
+                            f"{role_for_interview} candidate.\n\n"
+                            f"Base questions on this resume:\n{resume_text[:4000]}\n\n"
+                            f"Format each question as:\n"
+                            f"### Q1: [Question]\n"
+                            f"**Best Answer:** [A detailed, impressive answer the candidate should give based on their resume]\n\n"
+                            f"**Tips:** [1-2 line interview tip]\n\n---\n\n"
+                            f"Make questions specific to the candidate's experience. Output ONLY the Q&A."
+                        )
+                        result = ask_text_ai(prompt)
+                        if result:
+                            st.session_state["ai_tool_result"] = result
+                            st.rerun()
+                        else:
+                            st.error(BUSY_MSG)
+
+                if st.session_state.get("ai_tool_result"):
+                    st.markdown("### ✅ Interview Preparation Guide")
+                    st.markdown(st.session_state["ai_tool_result"])
+                    safe_name = (header.get("name") or "Interview_Prep").replace(" ", "_")
+                    st.download_button(
+                        "📥 Download Interview Guide",
+                        st.session_state["ai_tool_result"].encode("utf-8"),
+                        file_name=f"Interview_Prep_{safe_name}.txt",
+                        mime="text/plain", type="primary"
+                    )
+
+            # ---- LINKEDIN OPTIMIZER ----
+            elif active_tool == "linkedin":
+                st.markdown("""
+                <div class="tool-panel-header">
+                    <h3>💼 LinkedIn Profile Optimizer</h3>
+                    <p>Generate an optimized LinkedIn headline, about section, and experience bullets</p>
+                </div>
+                """, unsafe_allow_html=True)
+
+                if st.button("💼 Optimize for LinkedIn", type="primary", key="btn_do_linkedin"):
+                    with st.spinner("Optimizing your LinkedIn profile content..."):
+                        prompt = (
+                            f"You are a LinkedIn profile optimization expert and personal branding coach.\n"
+                            f"Based on this resume, generate optimized LinkedIn profile content:\n\n"
+                            f"{resume_text[:5000]}\n\n"
+                            f"Generate these sections:\n\n"
+                            f"## LinkedIn Headline\n"
+                            f"(1 line, max 220 chars, keyword-rich, compelling)\n\n"
+                            f"## About Section\n"
+                            f"(3-4 paragraphs, storytelling approach, first person, include call-to-action)\n\n"
+                            f"## Experience Bullets\n"
+                            f"(Rewritten for LinkedIn style - more conversational than resume, still impactful)\n\n"
+                            f"## Featured Skills\n"
+                            f"(Top 10 skills to endorse, ordered by relevance)\n\n"
+                            f"Output ONLY the LinkedIn content."
+                        )
+                        result = ask_text_ai(prompt)
+                        if result:
+                            st.session_state["ai_tool_result"] = result
+                            st.rerun()
+                        else:
+                            st.error(BUSY_MSG)
+
+                if st.session_state.get("ai_tool_result"):
+                    st.markdown("### ✅ Your Optimized LinkedIn Content")
+                    st.markdown(st.session_state["ai_tool_result"])
+                    st.download_button(
+                        "📥 Download LinkedIn Content",
+                        st.session_state["ai_tool_result"].encode("utf-8"),
+                        file_name="LinkedIn_Optimized.txt",
+                        mime="text/plain", type="primary"
+                    )
+
+            # ---- SKILL GAP ANALYZER ----
+            elif active_tool == "skill_gap":
+                st.markdown("""
+                <div class="tool-panel-header">
+                    <h3>📊 Skill Gap Analyzer</h3>
+                    <p>Compare your skills against a job description to discover gaps and opportunities</p>
+                </div>
+                """, unsafe_allow_html=True)
+
+                job_desc_gap = st.text_area(
+                    "Paste the target job description:",
+                    height=150, key="skill_gap_jd_input",
+                    placeholder="Paste the full job posting here..."
+                )
+
+                if st.button("📊 Analyze Gaps", type="primary", key="btn_do_skill_gap"):
+                    if not job_desc_gap.strip():
+                        st.warning("Please paste a job description to analyze against.")
+                    else:
+                        with st.spinner("Analyzing skill gaps..."):
+                            prompt = (
+                                f"You are a career advisor and skills assessment expert.\n"
+                                f"Compare this candidate's resume against the job description and provide a detailed skill gap analysis.\n\n"
+                                f"Resume:\n{resume_text[:4000]}\n\n"
+                                f"Job Description:\n{job_desc_gap[:3000]}\n\n"
+                                f"Provide this analysis:\n\n"
+                                f"## Match Score: [percentage]%\n\n"
+                                f"## ✅ Skills You Have (Matched)\n"
+                                f"- List each matching skill with how it maps to the JD\n\n"
+                                f"## ❌ Skills You're Missing\n"
+                                f"- List each missing skill and why it matters\n\n"
+                                f"## 📈 Recommended Learning Path\n"
+                                f"- Specific courses, certifications, or projects to close each gap\n"
+                                f"- Estimated time to acquire each skill\n\n"
+                                f"## 💡 Quick Wins\n"
+                                f"- Skills you partially have that can be quickly strengthened\n\n"
+                                f"Output ONLY the analysis."
+                            )
+                            result = ask_text_ai(prompt)
+                            if result:
+                                st.session_state["ai_tool_result"] = result
+                                st.rerun()
+                            else:
+                                st.error(BUSY_MSG)
+
+                if st.session_state.get("ai_tool_result"):
+                    st.markdown("### ✅ Skill Gap Analysis")
+                    st.markdown(st.session_state["ai_tool_result"])
+
+            # ---- EMAIL FOLLOW-UP ----
+            elif active_tool == "email_followup":
+                st.markdown("""
+                <div class="tool-panel-header">
+                    <h3>📧 Email Follow-Up Generator</h3>
+                    <p>Draft a professional follow-up email after applying or interviewing</p>
+                </div>
+                """, unsafe_allow_html=True)
+
+                email_type = st.selectbox(
+                    "Follow-up type:",
+                    ["After Submitting Application", "After Phone Screen", "After Technical Interview",
+                     "After Final Interview", "Thank You Note", "Checking Application Status"],
+                    key="email_type"
+                )
+                company_email = st.text_input("Company name:", key="email_company", placeholder="e.g. Google")
+                interviewer_name = st.text_input("Interviewer/Recruiter name (optional):", key="email_interviewer", placeholder="e.g. Sarah Johnson")
+
+                if st.button("📧 Generate Email", type="primary", key="btn_do_email"):
+                    with st.spinner("Drafting your follow-up email..."):
+                        name = header.get("name", "Candidate")
+                        title = header.get("title", "")
+                        prompt = (
+                            f"You are a professional career coach. Draft a {email_type.lower()} email for {name}"
+                            f"{f' applying for {title}' if title else ''}"
+                            f"{f' at {company_email}' if company_email.strip() else ''}.\n"
+                            f"{f'Address it to {interviewer_name}.' if interviewer_name.strip() else ''}\n\n"
+                            f"Resume context:\n{resume_text[:2000]}\n\n"
+                            f"Guidelines:\n"
+                            f"1. Professional yet warm tone\n"
+                            f"2. Reference specific points from the resume relevant to the role\n"
+                            f"3. Keep it concise (under 200 words)\n"
+                            f"4. Include subject line\n"
+                            f"5. Output ONLY the email"
+                        )
+                        result = ask_text_ai(prompt)
+                        if result:
+                            st.session_state["ai_tool_result"] = result
+                            st.rerun()
+                        else:
+                            st.error(BUSY_MSG)
+
+                if st.session_state.get("ai_tool_result"):
+                    st.markdown("### ✅ Your Follow-Up Email")
+                    st.markdown(f'<div class="ai-result-box">{st.session_state["ai_tool_result"]}</div>', unsafe_allow_html=True)
+                    st.download_button(
+                        "📥 Download Email",
+                        st.session_state["ai_tool_result"].encode("utf-8"),
+                        file_name="Follow_Up_Email.txt",
+                        mime="text/plain", type="primary"
+                    )
+
+            # ---- TAILOR RESUME ----
+            elif active_tool == "tailor_resume":
+                st.markdown("""
+                <div class="tool-panel-header">
+                    <h3>🎯 Tailor Resume to Job</h3>
+                    <p>Automatically customize your resume keywords and bullets for a specific posting</p>
+                </div>
+                """, unsafe_allow_html=True)
+
+                job_desc_tailor = st.text_area(
+                    "Paste the target job description:",
+                    height=150, key="tailor_jd_input",
+                    placeholder="Paste the full job posting you want to tailor your resume for..."
+                )
+
+                if st.button("🎯 Tailor My Resume", type="primary", key="btn_do_tailor"):
+                    if not job_desc_tailor.strip():
+                        st.warning("Please paste a job description to tailor against.")
+                    else:
+                        with st.spinner("Tailoring your resume to the job description..."):
+                            prompt = (
+                                f"You are an expert resume tailor and ATS optimizer.\n"
+                                f"Rewrite this resume to perfectly align with the target job description.\n\n"
+                                f"Original Resume:\n{resume_text}\n\n"
+                                f"Target Job Description:\n{job_desc_tailor[:3000]}\n\n"
+                                f"Guidelines:\n"
+                                f"1. Mirror keywords and phrases from the job description naturally\n"
+                                f"2. Reorder skills to prioritize those mentioned in the JD\n"
+                                f"3. Adjust experience bullets to emphasize relevant achievements\n"
+                                f"4. Keep all facts accurate — do not fabricate\n"
+                                f"5. Maintain the same format (## headings, ### subheadings, - bullets)\n"
+                                f"6. Output ONLY the tailored resume"
+                            )
+                            result = ask_text_ai(prompt)
+                            if result:
+                                st.session_state["ai_tool_result"] = result
+                                st.rerun()
+                            else:
+                                st.error(BUSY_MSG)
+
+                if st.session_state.get("ai_tool_result"):
+                    st.markdown("### ✅ Tailored Resume")
+                    st.markdown(st.session_state["ai_tool_result"])
+
+                    col_t1, col_t2 = st.columns(2)
+                    with col_t1:
+                        if st.button("✅ Apply Tailored Version", type="primary", key="btn_apply_tailor"):
+                            st.session_state["resume_text"] = st.session_state["ai_tool_result"]
+                            st.session_state["resume_log"].append("Tailored to specific job")
+                            st.success("🎉 Tailored version applied to your resume!")
+                    with col_t2:
+                        st.download_button(
+                            "📥 Download Tailored Resume",
+                            st.session_state["ai_tool_result"].encode("utf-8"),
+                            file_name="Resume_Tailored.txt", mime="text/plain"
+                        )
+
+            # ---- GRAMMAR CHECK ----
+            elif active_tool == "grammar_check":
+                st.markdown("""
+                <div class="tool-panel-header">
+                    <h3>✅ Grammar & Style Check</h3>
+                    <p>Find and fix grammar errors, typos, and awkward phrasing</p>
+                </div>
+                """, unsafe_allow_html=True)
+
+                if st.button("✅ Run Grammar Check", type="primary", key="btn_do_grammar"):
+                    with st.spinner("Scanning for grammar and style issues..."):
+                        prompt = (
+                            f"You are an expert proofreader and resume writing specialist.\n"
+                            f"Analyze this resume for grammar, spelling, punctuation, and style issues.\n\n"
+                            f"Resume:\n{resume_text}\n\n"
+                            f"Provide your report in this format:\n\n"
+                            f"## 📊 Overall Score: [X/10]\n\n"
+                            f"## ❌ Issues Found\n"
+                            f"For each issue:\n"
+                            f"- **Line:** \"[original text]\"\n"
+                            f"- **Issue:** [description]\n"
+                            f"- **Fix:** \"[corrected text]\"\n\n"
+                            f"## ✅ Corrected Resume\n"
+                            f"[Output the full corrected resume with all fixes applied, maintaining the same format]\n\n"
+                            f"Output ONLY the report."
+                        )
+                        result = ask_text_ai(prompt)
+                        if result:
+                            st.session_state["ai_tool_result"] = result
+                            st.rerun()
+                        else:
+                            st.error(BUSY_MSG)
+
+                if st.session_state.get("ai_tool_result"):
+                    st.markdown("### ✅ Grammar & Style Report")
+                    st.markdown(st.session_state["ai_tool_result"])
