@@ -508,7 +508,7 @@ TEMPLATES = [
         "desc": "Vibrant purple dual-column layout for designers, artists, and creative professionals.",
         "theme": "Royal Purple",
         "layout": "Modern Sidebar (Dual Tone)",
-        "accent_color": "#4f46e5",
+        "accent_color": "#334155",
         "accent_rgb": (124, 58, 237),
         "accent2_rgb": (167, 139, 250),
         "likes": 19870,
@@ -865,9 +865,11 @@ st.markdown("""
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
     html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
     .block-container { padding-top: 1rem; }
+    a, a:link, a:visited { color: #0d9488; text-decoration: none; }
+    a:hover { color: #0f766e; text-decoration: underline; }
 
     /* ── Page background: soft canvas so white cards & preview pop ── */
-    [data-testid="stAppViewContainer"] { background: #f4f5fc; }
+    [data-testid="stAppViewContainer"] { background: #f8fafc; }
     [data-testid="stHeader"] { background: transparent; }
     [data-testid="stMain"] { background: transparent; }
     [data-testid="stAppViewContainer"] > .main,
@@ -884,7 +886,7 @@ st.markdown("""
     section[data-testid="stSidebar"] label { color: #374151; }
 
     .sidebar-brand {
-        font-size: 24px; font-weight: 800; color: #4338ca;
+        font-size: 24px; font-weight: 800; color: #1e293b;
         padding: 8px 0 2px; letter-spacing: -0.5px;
     }
     .sidebar-tagline {
@@ -900,10 +902,10 @@ st.markdown("""
 
     /* ── Hero Banner ── */
     .hero-banner {
-        background: linear-gradient(135deg, #312e81 0%, #4338ca 40%, #6366f1 100%);
+        background: linear-gradient(135deg, #0f172a 0%, #0d9488 55%, #b45309 100%);
         border-radius: 16px; padding: 32px 40px 26px;
         margin-bottom: 28px; color: #ffffff;
-        box-shadow: 0 8px 30px rgba(67, 56, 202, 0.2);
+        box-shadow: 0 8px 30px rgba(15, 23, 42, 0.2);
     }
     .hero-banner h1 {
         font-size: 36px; font-weight: 900; margin: 0 0 6px;
@@ -937,8 +939,8 @@ st.markdown("""
     .filter-tab:first-child { border-radius: 8px 0 0 8px; }
     .filter-tab:last-child { border-radius: 0 8px 8px 0; }
     .filter-tab.active {
-        background: #4338ca; color: #ffffff;
-        border-color: #4338ca;
+        background: #1e293b; color: #ffffff;
+        border-color: #1e293b;
     }
 
     /* ── Template Cards ── */
@@ -952,7 +954,7 @@ st.markdown("""
     .tmpl-card:hover {
         transform: translateY(-4px);
         box-shadow: 0 12px 28px rgba(0,0,0,0.12);
-        border-color: #6366f1;
+        border-color: #b45309;
     }
     .tmpl-img-wrap {
         position: relative; background: #f9fafb;
@@ -965,13 +967,13 @@ st.markdown("""
     }
     .tmpl-overlay {
         position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-        background: rgba(67, 56, 202, 0.7);
+        background: rgba(15, 23, 42, 0.7);
         display: flex; align-items: center; justify-content: center;
         opacity: 0; transition: opacity 0.25s; border-radius: 0;
     }
     .tmpl-card:hover .tmpl-overlay { opacity: 1; }
     .tmpl-overlay-btn {
-        background: #ffffff; color: #4338ca;
+        background: #ffffff; color: #1e293b;
         padding: 10px 28px; border-radius: 8px;
         font-weight: 700; font-size: 14px;
         box-shadow: 0 4px 12px rgba(0,0,0,0.15);
@@ -993,6 +995,7 @@ st.markdown("""
     .section-head {
         font-size: 24px; font-weight: 800; color: #111827;
         margin: 6px 0 4px; letter-spacing: -0.3px;
+        padding-left: 12px; border-left: 4px solid #0d9488;
     }
     .section-sub {
         font-size: 13.5px; color: #6b7280;
@@ -1002,7 +1005,7 @@ st.markdown("""
     /* ── Buttons ── */
     div[data-testid="stButton"] button[kind="primary"],
     div[data-testid="stDownloadButton"] button[kind="primary"] {
-        background: linear-gradient(135deg, #4338ca, #6366f1);
+        background: linear-gradient(135deg, #1e293b, #b45309);
         color: #ffffff; border: none; border-radius: 8px;
         font-weight: 700; padding: 0.5rem 1.2rem;
         transition: transform 0.15s, box-shadow 0.15s;
@@ -1010,13 +1013,13 @@ st.markdown("""
     div[data-testid="stButton"] button[kind="primary"]:hover,
     div[data-testid="stDownloadButton"] button[kind="primary"]:hover {
         transform: translateY(-2px);
-        box-shadow: 0 6px 16px rgba(99, 102, 241, 0.35);
+        box-shadow: 0 6px 16px rgba(180, 83, 9, 0.35);
         color: #ffffff;
     }
 
     /* ── Builder page ── */
     .builder-header {
-        background: linear-gradient(135deg, #312e81, #4338ca);
+        background: linear-gradient(135deg, #0f172a, #1e293b);
         border-radius: 12px; padding: 24px 30px; color: #fff;
         margin-bottom: 20px;
     }
@@ -1025,7 +1028,7 @@ st.markdown("""
 
     /* Chat Input */
     div[data-testid="stChatInput"] {
-        border: 2px solid #a5b4fc; border-radius: 12px;
+        border: 2px solid #99f6e4; border-radius: 12px;
     }
 
     /* Hide Streamlit footer */
@@ -1033,15 +1036,15 @@ st.markdown("""
 
     /* ── AI Tools Page ── */
     .ai-tools-banner {
-        background: linear-gradient(135deg, #f8f0ff 0%, #e0e7ff 50%, #e0e7ff 100%);
-        border: 1px solid #c7d2fe;
+        background: linear-gradient(135deg, #f8f0ff 0%, #f1f5f9 50%, #f1f5f9 100%);
+        border: 1px solid #e2e8f0;
         border-radius: 14px; padding: 18px 28px;
         margin-bottom: 28px;
         display: flex; align-items: center; justify-content: space-between;
         flex-wrap: wrap; gap: 12px;
     }
     .ai-tools-banner .banner-text {
-        font-size: 14.5px; color: #312e81;
+        font-size: 14.5px; color: #0f172a;
         font-weight: 500;
     }
     .ai-tools-banner .upgrade-btn {
@@ -1071,8 +1074,8 @@ st.markdown("""
         gap: 16px;
     }
     .ai-tool-card:hover {
-        border-color: #818cf8;
-        box-shadow: 0 6px 24px rgba(99, 102, 241, 0.1);
+        border-color: #0d9488;
+        box-shadow: 0 6px 24px rgba(13, 148, 136, 0.14);
         transform: translateY(-2px);
     }
     .ai-tool-left {
@@ -1085,14 +1088,14 @@ st.markdown("""
         display: flex; align-items: center; justify-content: center;
         font-size: 22px; flex-shrink: 0;
     }
-    .ai-tool-icon.purple { background: #e0e7ff; }
-    .ai-tool-icon.blue { background: #e0e7ff; }
+    .ai-tool-icon.purple { background: #f1f5f9; }
+    .ai-tool-icon.blue { background: #f1f5f9; }
     .ai-tool-icon.green { background: #d1fae5; }
     .ai-tool-icon.orange { background: #ffedd5; }
     .ai-tool-icon.pink { background: #fce7f3; }
     .ai-tool-icon.teal { background: #ccfbf1; }
     .ai-tool-icon.red { background: #fee2e2; }
-    .ai-tool-icon.indigo { background: #e0e7ff; }
+    .ai-tool-icon.indigo { background: #f1f5f9; }
     .ai-tool-icon.yellow { background: #fef9c3; }
     .ai-tool-info h4 {
         font-size: 15.5px; font-weight: 700; color: #111827;
@@ -1103,7 +1106,7 @@ st.markdown("""
         margin: 0; line-height: 1.45;
     }
     .new-badge {
-        background: linear-gradient(135deg, #6366f1, #4338ca);
+        background: linear-gradient(135deg, #b45309, #1e293b);
         color: #fff; font-size: 10px; font-weight: 700;
         padding: 2px 8px; border-radius: 10px;
         text-transform: uppercase; letter-spacing: 0.5px;
@@ -1129,28 +1132,28 @@ st.markdown("""
         font-size: 14px; color: #1e293b;
     }
     .ai-result-box h3, .ai-result-box h4 {
-        color: #4338ca; margin-top: 12px;
+        color: #1e293b; margin-top: 12px;
     }
 
     /* Sidebar AI Tools nav button */
     .sidebar-ai-btn {
-        background: linear-gradient(135deg, #6366f1, #4338ca);
+        background: linear-gradient(135deg, #b45309, #1e293b);
         color: #ffffff !important; border: none; border-radius: 10px;
         padding: 10px 16px; font-weight: 700; font-size: 14px;
         width: 100%; text-align: center; cursor: pointer;
         margin: 8px 0; display: block;
-        box-shadow: 0 4px 14px rgba(67, 56, 202, 0.25);
+        box-shadow: 0 4px 14px rgba(15, 23, 42, 0.25);
         transition: transform 0.15s, box-shadow 0.15s;
         text-decoration: none;
     }
     .sidebar-ai-btn:hover {
         transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(67, 56, 202, 0.35);
+        box-shadow: 0 6px 20px rgba(15, 23, 42, 0.35);
     }
 
     /* Tool active panel */
     .tool-panel-header {
-        background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
+        background: linear-gradient(135deg, #334155 0%, #1e293b 100%);
         border-radius: 12px; padding: 20px 24px;
         color: #ffffff; margin-bottom: 20px;
     }
@@ -1158,7 +1161,7 @@ st.markdown("""
         margin: 0 0 4px; font-weight: 800; font-size: 20px; color: #ffffff;
     }
     .tool-panel-header p {
-        margin: 0; opacity: 0.9; font-size: 13.5px; color: #c7d2fe;
+        margin: 0; opacity: 0.9; font-size: 13.5px; color: #e2e8f0;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -1508,7 +1511,7 @@ elif st.session_state["page"] == "builder":
                 st.rerun()
         else:
             st.markdown("""
-            <div style="border: 2px dashed #a5b4fc; border-radius: 12px; padding: 24px; text-align: center; color: #6366f1;">
+            <div style="border: 2px dashed #cbd5e1; border-radius: 12px; padding: 24px; text-align: center; color: #b45309;">
                 📸 <b>No Photo</b><br><small>Upload below</small>
             </div>
             """, unsafe_allow_html=True)
