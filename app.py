@@ -1163,6 +1163,41 @@ st.markdown("""
     .tool-panel-header p {
         margin: 0; opacity: 0.9; font-size: 13.5px; color: #e2e8f0;
     }
+
+    /* ── Top Navigation Bar ── */
+    div[class*="st-key-nav_brand"] button,
+    div[class*="st-key-navlink_"] button {
+        background: transparent !important; border: none !important;
+        color: #334155 !important; font-weight: 600; font-size: 15px;
+        box-shadow: none !important; padding: 0.3rem 0.5rem !important;
+        min-height: 0; letter-spacing: -0.2px;
+    }
+    div[class*="st-key-nav_brand"] button {
+        color: #0f172a !important; font-weight: 800; font-size: 19px;
+    }
+    div[class*="st-key-nav_brand"] button:hover,
+    div[class*="st-key-navlink_"] button:hover {
+        color: #b45309 !important; background: transparent !important;
+        box-shadow: none !important; text-decoration: none !important;
+    }
+    div[class*="st-key-nav_signin"] button {
+        background: transparent !important; border: 1.5px solid #1e293b !important;
+        color: #1e293b !important; border-radius: 22px !important; font-weight: 700;
+        box-shadow: none !important; padding: 0.3rem 1.1rem !important; min-height: 0;
+    }
+    div[class*="st-key-nav_signin"] button:hover {
+        background: #1e293b !important; color: #ffffff !important;
+    }
+    div[class*="st-key-nav_signup"] button {
+        background: linear-gradient(135deg, #b45309, #d97706) !important;
+        border: none !important; color: #ffffff !important; border-radius: 22px !important;
+        font-weight: 700; box-shadow: 0 4px 14px rgba(180, 83, 9, 0.28) !important;
+        padding: 0.3rem 1.1rem !important; min-height: 0;
+    }
+    div[class*="st-key-nav_signup"] button:hover {
+        transform: translateY(-2px); box-shadow: 0 6px 18px rgba(180, 83, 9, 0.4) !important;
+    }
+    .topnav-rule { border: none; border-top: 1px solid #e2e8f0; margin: 2px 0 18px; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -1299,6 +1334,74 @@ def render_live_resume_preview():
         st.error(f"Could not render preview: {e}")
 
 # ============================================================
+# ---- 8b. TOP NAVIGATION BAR + AUTH / INFO DIALOGS ----
+# ============================================================
+@st.dialog("Sign in to ResumeStudio")
+def _signin_dialog():
+    with st.form("signin_form"):
+        st.text_input("Email")
+        st.text_input("Password", type="password")
+        ok = st.form_submit_button("Sign in", type="primary", use_container_width=True)
+    if ok:
+        st.success("Signed in — welcome back!")
+    st.caption("UI demo: real account login is not wired to a backend yet.")
+
+@st.dialog("Create your free account")
+def _signup_dialog():
+    with st.form("signup_form"):
+        st.text_input("Full name")
+        st.text_input("Email")
+        st.text_input("Password", type="password")
+        ok = st.form_submit_button("Create account", type="primary", use_container_width=True)
+    if ok:
+        st.success("Account created!")
+    st.caption("UI demo: real account sign-up is not wired to a backend yet.")
+
+@st.dialog("Pricing")
+def _pricing_dialog():
+    st.markdown("**Everything is 100% free right now.**")
+    st.markdown(
+        "- Unlimited resumes, templates & PDF export\n"
+        "- All 10 AI tools included\n"
+        "- No sign-up required"
+    )
+    st.caption("A paid Pro tier is planned but not built yet.")
+
+@st.dialog("Help & Support")
+def _help_dialog():
+    st.markdown("**Getting started:** pick a template, fill your details, press **Build My Resume**, then download the PDF.")
+    st.markdown("Use **AI Tools** to translate, improve, tailor your resume, or draft a cover letter.")
+    st.caption("Add a contact / support link here when you have one.")
+
+def render_top_nav():
+    brand, links, auth = st.columns([2.4, 5.6, 2.4], gap="small")
+    with brand:
+        if st.button("📄 ResumeStudio", key="nav_brand"):
+            st.session_state["page"] = "gallery"
+            st.rerun()
+    with links:
+        c1, c2, c3, c4, _ = st.columns([1, 1, 1, 1, 2])
+        if c1.button("Templates", key="navlink_templates"):
+            st.session_state["page"] = "gallery"
+            st.rerun()
+        if c2.button("AI Tools", key="navlink_aitools"):
+            st.session_state["page"] = "ai_tools"
+            st.session_state["ai_tool_active"] = None
+            st.session_state["ai_tool_result"] = None
+            st.rerun()
+        if c3.button("Pricing", key="navlink_pricing"):
+            _pricing_dialog()
+        if c4.button("Help", key="navlink_help"):
+            _help_dialog()
+    with auth:
+        a1, a2 = st.columns(2)
+        if a1.button("Sign in", key="nav_signin"):
+            _signin_dialog()
+        if a2.button("Sign up", key="nav_signup"):
+            _signup_dialog()
+    st.markdown('<hr class="topnav-rule">', unsafe_allow_html=True)
+
+# ============================================================
 # ---- 9. SIDEBAR: Categories & Branding ----
 # ============================================================
 with st.sidebar:
@@ -1337,6 +1440,9 @@ with st.sidebar:
     else:
         st.caption("⚠️ Add API keys in `.env` for AI features")
 
+
+# ---- Top navigation bar (shown on every page) ----
+render_top_nav()
 
 # ============================================================
 # ---- 10. PAGE: TEMPLATE GALLERY (Landing Page) ----
