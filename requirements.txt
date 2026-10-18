@@ -5,3 +5,4 @@ Pillow
 pypdf
 python-docx
 pypdfium2
+supabase

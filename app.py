@@ -44,6 +44,93 @@ def load_env():
 
 load_env()
 
+# ---- 0b. Supabase Auth + Saved Resumes (optional backend) ----
+# Works only when SUPABASE_URL and SUPABASE_ANON_KEY are set (in .env locally
+# or Streamlit Secrets on Cloud). If they are missing, the app still runs and
+# the auth/save UI shows a friendly "not configured yet" notice instead.
+try:
+    from supabase import create_client
+except ImportError:
+    create_client = None
+
+def _sb_keys():
+    return os.environ.get("SUPABASE_URL"), os.environ.get("SUPABASE_ANON_KEY")
+
+def sb_enabled():
+    url, key = _sb_keys()
+    return bool(url and key and create_client is not None)
+
+def _sb():
+    """Return a per-session Supabase client, restoring the stored login session."""
+    if not sb_enabled():
+        return None
+    client = st.session_state.get("_sb_client")
+    if client is None:
+        url, key = _sb_keys()
+        client = create_client(url, key)
+        st.session_state["_sb_client"] = client
+    sess = st.session_state.get("sb_session")
+    if sess:
+        try:
+            client.auth.set_session(sess["access_token"], sess["refresh_token"])
+        except Exception:
+            st.session_state.pop("sb_session", None)
+    return client
+
+def _store_session(session):
+    if session and getattr(session, "access_token", None):
+        st.session_state["sb_session"] = {
+            "access_token": session.access_token,
+            "refresh_token": session.refresh_token,
+        }
+
+def sb_current_user():
+    """Return the logged-in user object (with .email/.id) or None."""
+    if not sb_enabled():
+        return None
+    try:
+        return _sb().auth.get_user().user
+    except Exception:
+        return None
+
+def sb_sign_in(email, password):
+    res = _sb().auth.sign_in_with_password({"email": email, "password": password})
+    _store_session(res.session)
+    return res.user
+
+def sb_sign_up(email, password, full_name=None):
+    payload = {"email": email, "password": password}
+    if full_name:
+        payload["options"] = {"data": {"full_name": full_name}}
+    res = _sb().auth.sign_up(payload)
+    if res.session:
+        _store_session(res.session)
+    return res.user, res.session
+
+def sb_sign_out():
+    try:
+        _sb().auth.sign_out()
+    except Exception:
+        pass
+    st.session_state.pop("sb_session", None)
+
+def sb_save_resume(user_id, name, resume_text, header, template_id):
+    _sb().table("resumes").insert({
+        "user_id": user_id,
+        "name": name,
+        "resume_text": resume_text,
+        "header_json": json.dumps(header or {}),
+        "template_id": template_id,
+    }).execute()
+
+def sb_list_resumes(user_id):
+    rows = (_sb().table("resumes").select("*")
+            .eq("user_id", user_id).order("created_at", desc=True).execute())
+    return rows.data or []
+
+def sb_delete_resume(user_id, resume_id):
+    _sb().table("resumes").delete().eq("id", resume_id).eq("user_id", user_id).execute()
+
 # ---- 1. AI Text Engine for Resume Writing, Parsing & ATS Optimization ----
 BUSY_MSG = "Sorry, the AI is busy right now. Please try again in a moment."
 
@@ -902,27 +989,44 @@ st.markdown("""
 
     /* ── Hero Banner ── */
     .hero-banner {
-        background: linear-gradient(135deg, #0f172a 0%, #0d9488 55%, #b45309 100%);
-        border-radius: 16px; padding: 32px 40px 26px;
-        margin-bottom: 28px; color: #ffffff;
-        box-shadow: 0 8px 30px rgba(15, 23, 42, 0.2);
+        position: relative; overflow: hidden;
+        background:
+          radial-gradient(1100px 380px at 88% -12%, rgba(180, 83, 9, 0.55), transparent 60%),
+          radial-gradient(900px 480px at 8% 128%, rgba(13, 148, 136, 0.55), transparent 55%),
+          linear-gradient(135deg, #0f172a 0%, #1e293b 55%, #0f172a 100%);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 20px; padding: 40px 44px 30px;
+        margin-bottom: 30px; color: #ffffff;
+        box-shadow: 0 18px 50px rgba(15, 23, 42, 0.28);
     }
     .hero-banner h1 {
-        font-size: 36px; font-weight: 900; margin: 0 0 6px;
-        letter-spacing: -0.5px; line-height: 1.1;
+        font-size: 38px; font-weight: 900; margin: 0 0 8px;
+        letter-spacing: -0.8px; line-height: 1.08;
     }
     .hero-banner p {
-        font-size: 14.5px; opacity: 0.92; margin: 0; line-height: 1.5;
+        font-size: 15px; opacity: 0.9; margin: 0; line-height: 1.55;
+        max-width: 620px;
     }
     .hero-stats-bar {
-        display: flex; gap: 32px; margin-top: 18px;
+        display: flex; gap: 14px; margin-top: 24px;
         flex-wrap: wrap;
     }
-    .hero-stat { text-align: center; }
-    .hero-stat .num { font-size: 22px; font-weight: 800; display: block; }
+    .hero-stat {
+        text-align: center; min-width: 96px;
+        background: rgba(255, 255, 255, 0.07);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 14px; padding: 12px 18px;
+        backdrop-filter: blur(6px);
+    }
+    .hero-stat .num {
+        font-size: 24px; font-weight: 800; display: block;
+        background: linear-gradient(135deg, #fbbf24, #f59e0b);
+        -webkit-background-clip: text; background-clip: text;
+        -webkit-text-fill-color: transparent; color: #f59e0b;
+    }
     .hero-stat .lbl {
         font-size: 10px; text-transform: uppercase;
-        letter-spacing: 1px; opacity: 0.8;
+        letter-spacing: 1px; opacity: 0.85;
     }
 
     /* ── Filter Tabs ── */
@@ -945,25 +1049,35 @@ st.markdown("""
 
     /* ── Template Cards ── */
     .tmpl-card {
-        background: #ffffff; border: 1px solid #e5e7eb;
-        border-radius: 12px; overflow: hidden;
+        position: relative;
+        background: #ffffff; border: 1px solid #e8ebf0;
+        border-radius: 14px; overflow: hidden;
         transition: all 0.25s ease;
         margin-bottom: 20px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+    }
+    .tmpl-card::before {
+        content: ""; position: absolute; top: 0; left: 0; right: 0;
+        height: 3px; z-index: 2;
+        background: linear-gradient(90deg, #0d9488, #b45309);
+        transform: scaleX(0); transform-origin: left;
+        transition: transform 0.3s ease;
     }
     .tmpl-card:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 12px 28px rgba(0,0,0,0.12);
-        border-color: #b45309;
+        transform: translateY(-5px);
+        box-shadow: 0 16px 34px rgba(15, 23, 42, 0.14);
+        border-color: #cbd5e1;
     }
+    .tmpl-card:hover::before { transform: scaleX(1); }
     .tmpl-img-wrap {
-        position: relative; background: #f9fafb;
-        padding: 12px; display: flex; justify-content: center;
+        position: relative;
+        background: linear-gradient(180deg, #f8fafc, #f1f5f9);
+        padding: 14px; display: flex; justify-content: center;
         min-height: 220px; align-items: center;
     }
     .tmpl-img-wrap img {
-        max-height: 200px; border-radius: 4px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        max-height: 200px; border-radius: 6px;
+        box-shadow: 0 4px 14px rgba(15, 23, 42, 0.12);
     }
     .tmpl-overlay {
         position: absolute; top: 0; left: 0; right: 0; bottom: 0;
@@ -1036,7 +1150,7 @@ st.markdown("""
 
     /* ── AI Tools Page ── */
     .ai-tools-banner {
-        background: linear-gradient(135deg, #f8f0ff 0%, #f1f5f9 50%, #f1f5f9 100%);
+        background: linear-gradient(135deg, #f0fdfa 0%, #f1f5f9 55%, #fffbeb 100%);
         border: 1px solid #e2e8f0;
         border-radius: 14px; padding: 18px 28px;
         margin-bottom: 28px;
@@ -1048,16 +1162,16 @@ st.markdown("""
         font-weight: 500;
     }
     .ai-tools-banner .upgrade-btn {
-        background: linear-gradient(135deg, #ef4444, #dc2626);
+        background: linear-gradient(135deg, #b45309, #d97706);
         color: #fff; border: none; border-radius: 24px;
         padding: 10px 28px; font-weight: 700; font-size: 14px;
         cursor: pointer; text-decoration: none;
-        box-shadow: 0 4px 14px rgba(239, 68, 68, 0.3);
+        box-shadow: 0 4px 14px rgba(180, 83, 9, 0.3);
         transition: transform 0.15s, box-shadow 0.15s;
     }
     .ai-tools-banner .upgrade-btn:hover {
         transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4);
+        box-shadow: 0 6px 20px rgba(180, 83, 9, 0.4);
     }
     .ai-tools-heading {
         font-size: 28px; font-weight: 800; color: #111827;
@@ -1112,13 +1226,13 @@ st.markdown("""
         text-transform: uppercase; letter-spacing: 0.5px;
     }
     .hot-badge {
-        background: linear-gradient(135deg, #f97316, #ea580c);
+        background: linear-gradient(135deg, #0d9488, #0f766e);
         color: #fff; font-size: 10px; font-weight: 700;
         padding: 2px 8px; border-radius: 10px;
         text-transform: uppercase; letter-spacing: 0.5px;
     }
     .pro-badge {
-        background: linear-gradient(135deg, #eab308, #ca8a04);
+        background: linear-gradient(135deg, #b45309, #d97706);
         color: #fff; font-size: 10px; font-weight: 700;
         padding: 2px 8px; border-radius: 10px;
         text-transform: uppercase; letter-spacing: 0.5px;
@@ -1198,6 +1312,19 @@ st.markdown("""
         transform: translateY(-2px); box-shadow: 0 6px 18px rgba(180, 83, 9, 0.4) !important;
     }
     .topnav-rule { border: none; border-top: 1px solid #e2e8f0; margin: 2px 0 18px; }
+    .nav-user {
+        color: #334155; font-weight: 600; font-size: 14px;
+        padding: 0.35rem 0.2rem; white-space: nowrap; overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    div[class*="st-key-nav_signout"] button {
+        background: transparent !important; border: 1.5px solid #cbd5e1 !important;
+        color: #475569 !important; border-radius: 22px !important; font-weight: 700;
+        box-shadow: none !important; padding: 0.3rem 0.9rem !important; min-height: 0;
+    }
+    div[class*="st-key-nav_signout"] button:hover {
+        border-color: #b45309 !important; color: #b45309 !important; background: transparent !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -1338,24 +1465,45 @@ def render_live_resume_preview():
 # ============================================================
 @st.dialog("Sign in to ResumeStudio")
 def _signin_dialog():
+    if not sb_enabled():
+        st.info("Accounts aren't set up yet. The developer needs to add SUPABASE_URL and "
+                "SUPABASE_ANON_KEY to the app's secrets to enable sign in.")
+        return
     with st.form("signin_form"):
-        st.text_input("Email")
-        st.text_input("Password", type="password")
+        email = st.text_input("Email")
+        password = st.text_input("Password", type="password")
         ok = st.form_submit_button("Sign in", type="primary", use_container_width=True)
     if ok:
-        st.success("Signed in — welcome back!")
-    st.caption("UI demo: real account login is not wired to a backend yet.")
+        try:
+            sb_sign_in(email.strip(), password)
+            st.success("Signed in — welcome back!")
+            time.sleep(0.4)
+            st.rerun()
+        except Exception as e:
+            st.error(f"Sign in failed: {e}")
 
 @st.dialog("Create your free account")
 def _signup_dialog():
+    if not sb_enabled():
+        st.info("Accounts aren't set up yet. The developer needs to add SUPABASE_URL and "
+                "SUPABASE_ANON_KEY to the app's secrets to enable sign up.")
+        return
     with st.form("signup_form"):
-        st.text_input("Full name")
-        st.text_input("Email")
-        st.text_input("Password", type="password")
+        full_name = st.text_input("Full name")
+        email = st.text_input("Email")
+        password = st.text_input("Password", type="password")
         ok = st.form_submit_button("Create account", type="primary", use_container_width=True)
     if ok:
-        st.success("Account created!")
-    st.caption("UI demo: real account sign-up is not wired to a backend yet.")
+        try:
+            user, session = sb_sign_up(email.strip(), password, full_name.strip())
+            if session:
+                st.success("Account created! You're signed in.")
+                time.sleep(0.5)
+                st.rerun()
+            else:
+                st.success("Account created! Check your email to confirm, then sign in.")
+        except Exception as e:
+            st.error(f"Sign up failed: {e}")
 
 @st.dialog("Pricing")
 def _pricing_dialog():
@@ -1374,13 +1522,17 @@ def _help_dialog():
     st.caption("Add a contact / support link here when you have one.")
 
 def render_top_nav():
+    user = sb_current_user()
     brand, links, auth = st.columns([2.4, 5.6, 2.4], gap="small")
     with brand:
         if st.button("📄 ResumeStudio", key="nav_brand"):
             st.session_state["page"] = "gallery"
             st.rerun()
     with links:
-        c1, c2, c3, c4, _ = st.columns([1, 1, 1, 1, 2])
+        if user:
+            c1, c2, c3, c4, c5, _ = st.columns([1, 1, 1.2, 1, 1, 1])
+        else:
+            c1, c2, c3, c4, _ = st.columns([1, 1, 1, 1, 2])
         if c1.button("Templates", key="navlink_templates"):
             st.session_state["page"] = "gallery"
             st.rerun()
@@ -1389,16 +1541,36 @@ def render_top_nav():
             st.session_state["ai_tool_active"] = None
             st.session_state["ai_tool_result"] = None
             st.rerun()
-        if c3.button("Pricing", key="navlink_pricing"):
-            _pricing_dialog()
-        if c4.button("Help", key="navlink_help"):
-            _help_dialog()
+        if user:
+            if c3.button("My Resumes", key="navlink_mine"):
+                st.session_state["page"] = "my_resumes"
+                st.rerun()
+            if c4.button("Pricing", key="navlink_pricing"):
+                _pricing_dialog()
+            if c5.button("Help", key="navlink_help"):
+                _help_dialog()
+        else:
+            if c3.button("Pricing", key="navlink_pricing"):
+                _pricing_dialog()
+            if c4.button("Help", key="navlink_help"):
+                _help_dialog()
     with auth:
-        a1, a2 = st.columns(2)
-        if a1.button("Sign in", key="nav_signin"):
-            _signin_dialog()
-        if a2.button("Sign up", key="nav_signup"):
-            _signup_dialog()
+        if user:
+            a1, a2 = st.columns([1.6, 1])
+            a1.markdown(
+                f'<div class="nav-user">👤 {(getattr(user, "email", "") or "Signed in")[:22]}</div>',
+                unsafe_allow_html=True,
+            )
+            if a2.button("Sign out", key="nav_signout"):
+                sb_sign_out()
+                st.session_state["page"] = "gallery"
+                st.rerun()
+        else:
+            a1, a2 = st.columns(2)
+            if a1.button("Sign in", key="nav_signin"):
+                _signin_dialog()
+            if a2.button("Sign up", key="nav_signup"):
+                _signup_dialog()
     st.markdown('<hr class="topnav-rule">', unsafe_allow_html=True)
 
 # ============================================================
@@ -1824,6 +1996,24 @@ elif st.session_state["page"] == "builder":
                     file_name=f"Resume_{safe_name}.txt",
                     mime="text/plain", use_container_width=True
                 )
+
+            # Save to account (requires sign-in)
+            _sb_user = sb_current_user()
+            if not sb_enabled():
+                st.caption("💾 Cloud saving unlocks once the developer connects Supabase (SUPABASE_URL / SUPABASE_ANON_KEY).")
+            elif _sb_user is None:
+                st.info("Sign in to save this resume to your account and access it from **My Resumes**.")
+            else:
+                sc1, sc2 = st.columns([3, 1])
+                save_name = sc1.text_input("Save as", value=f"{safe_name} Resume", key="save_resume_name")
+                if sc2.button("💾 Save", type="primary", use_container_width=True, key="save_resume_btn"):
+                    try:
+                        sb_save_resume(_sb_user.id, save_name.strip() or "Untitled",
+                                       st.session_state["resume_text"], header,
+                                       st.session_state.get("chosen_template_id"))
+                        st.success("Saved to your account!")
+                    except Exception as e:
+                        st.error(f"Could not save: {e}")
 
             st.markdown("---")
             st.markdown(f"### Preview: {current_template['name']}")
@@ -2564,3 +2754,49 @@ elif st.session_state["page"] == "ai_tools":
                 if st.session_state.get("ai_tool_result"):
                     st.markdown("### ✅ Grammar & Style Report")
                     st.markdown(st.session_state["ai_tool_result"])
+
+# ============================================================
+# ---- 13. PAGE: MY RESUMES (saved to Supabase) ----
+# ============================================================
+elif st.session_state["page"] == "my_resumes":
+    _mr_user = sb_current_user()
+    st.markdown('<div class="section-head">📚 My Resumes</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-sub">Resumes you saved to your account. Load one to keep editing, or delete it.</div>', unsafe_allow_html=True)
+
+    if not sb_enabled():
+        st.info("Cloud storage isn't configured yet. Add SUPABASE_URL and SUPABASE_ANON_KEY to enable saving.")
+    elif _mr_user is None:
+        st.warning("Please sign in to view your saved resumes.")
+        if st.button("Sign in", type="primary"):
+            _signin_dialog()
+    else:
+        try:
+            _saved = sb_list_resumes(_mr_user.id)
+        except Exception as e:
+            _saved = []
+            st.error(f"Could not load your resumes: {e}")
+        if not _saved:
+            st.info("You haven't saved any resumes yet. Build one and press **💾 Save**.")
+        for row in _saved:
+            _c1, _c2, _c3 = st.columns([5, 1.2, 1.2])
+            _created = (row.get("created_at") or "")[:10]
+            with _c1:
+                st.markdown(f"**{row.get('name','Untitled')}**  \n"
+                            f"<span style='color:#6b7280;font-size:12px'>Saved {_created}</span>",
+                            unsafe_allow_html=True)
+            if _c2.button("Load", key=f"load_{row['id']}", use_container_width=True):
+                st.session_state["resume_text"] = row.get("resume_text", "")
+                try:
+                    st.session_state["resume_header"] = json.loads(row.get("header_json") or "{}")
+                except Exception:
+                    st.session_state["resume_header"] = {}
+                st.session_state["chosen_template_id"] = row.get("template_id")
+                st.session_state["page"] = "builder"
+                st.rerun()
+            if _c3.button("Delete", key=f"del_{row['id']}", use_container_width=True):
+                try:
+                    sb_delete_resume(_mr_user.id, row["id"])
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Could not delete: {e}")
+            st.markdown("---")
